@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<!-- 말씀 뷰어 — 주일·수요 말씀을 카드로 넘겨 보며 읽고 듣는 단일 HTML 문서.
+     하나님·성령님·예수님·선생님·성자 말씀 인용은 화자별 색으로 표시된다. -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<!-- 홈 화면에 추가했을 때 앱처럼 보이게 -->
+<link rel="manifest" href="/sayeon/manifest.json">
+<meta name="theme-color" content="#1b2018">
+<link rel="apple-touch-icon" href="/sayeon/icons/apple-touch-icon.png?v=4">
+<link rel="icon" href="/sayeon/icons/icon-192.png?v=4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<script src="analytics-config.js"></script>
+<script src="analytics.js"></script>
+<script src="crypt.js"></script>
+<script src="settings.js"></script>
+<script>
+/* 화면이 그려지기 전에 상태바 색을 정한다.
+   브라우저가 이 색을 보고 상태바 글자(시계·배터리) 색을 정하기 때문에,
+   나중에 바꾸면 글자가 안 보이는 일이 생긴다. */
+(function () {
+  try {
+    var s = JSON.parse(localStorage.getItem("siteSettings") || "{}");
+    if (s.bg) {
+      var m = document.querySelector('meta[name="theme-color"]');
+      if (m) m.setAttribute("content", s.bg);
+      // 아이폰: 배경이 밝으면 글자가 검은 기본 막대, 어두우면 흰 글자 막대
+      var hex = String(s.bg).replace("#", "");
+      if (hex.length === 6) {
+        var r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+        var light = (r*299 + g*587 + b*114) / 1000 > 140;
+        var ios = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+        if (ios) ios.setAttribute("content", light ? "default" : "black");
+      }
+    }
+  } catch (e) {}
+})();
+</script>
+<meta name="apple-mobile-web-app-title" content="2026년 말씀">
+<title>2026년 말씀</title>
+<style>
+  :root {
+    --bg: #1b2018;
+    --text: #e9ece4;
+    --green: #93c4a5;
+    --gold: #e6d5a0;
+    --panel: rgba(140,150,130,.14);
+    --size: 16px;
+    --lh: 1.95;
+    --pad: 18px;
+    --font: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    -webkit-text-size-adjust: 100%;
+    /* 전체화면으로 열면 상태바가 사라져 화면 맨 위까지 글이 올라온다.
+       노치·펀치홀에 가리지 않도록 기기가 알려 주는 안전 여백을 둔다. */
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 22px var(--pad) 40px; }
+  .dim { opacity: .6; }
+
+  h1.head { font-size: 30px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+  .headrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 16px; }
+
+  /* 성령사연 / 월명동사연 / 말씀 이동 탭 */
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+  .tab {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--panel); color: var(--text);
+    border: 0; border-radius: 999px; padding: 10px 18px;
+    font-size: 15px; font-family: inherit; text-decoration: none;
+    min-height: 44px; cursor: pointer;
+  }
+  .tab.on { background: var(--green); color: #14180f; font-weight: 700; cursor: default; }
+
+  .topbar { display: flex; gap: 8px; flex-wrap: wrap; }
+  .topbtn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--panel); color: var(--text); border: 0;
+    border-radius: 999px; padding: 10px 18px;
+    font-size: 15px; font-family: inherit; cursor: pointer; min-height: 44px;
+    text-decoration: none;
+  }
+
+  .total { opacity: .6; font-size: 15px; margin: 16px 0 10px; }
+  hr.sep { border: 0; border-top: 1px solid; opacity: .18; margin: 0 0 22px; }
+
+  .card-head {
+    background: var(--green); color: #14180f;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 14px 16px; border-radius: 4px;
+  }
+  .card-head .t {
+    font-size: 21px; font-weight: 600; flex: 1 1 auto; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .card-head-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .speakbtn {
+    background: rgba(20,24,15,.14); color: #14180f; border: 0;
+    border-radius: 999px; padding: 8px 14px; font-size: 15px;
+    font-family: inherit; cursor: pointer; white-space: nowrap; min-height: 40px;
+    flex-shrink: 0;
+  }
+  .speakbtn.on { background: #14180f; color: var(--green); }
+  .speakbtn.human { background: var(--gold); color: #2a2200; }
+  .speakbtn.human.on { background: #2a2200; color: var(--gold); }
+  .speakbtn.readcount.done { background: #14180f; color: var(--green); }
+  .speakbtn.readminus { min-width: 40px; padding-left: 11px; padding-right: 11px; font-size: 21px; line-height: 1; }
+  .speakbtn:disabled { opacity: .35; cursor: default; }
+  @media (max-width: 420px) {
+    .card-head { gap: 6px; padding: 12px 12px; }
+    .card-head .t { font-size: 17px; }
+    .speakbtn { padding: 7px 10px; font-size: 12px; min-height: 34px; }
+    .card-head-actions { gap: 5px; }
+  }
+  .seekwrap { display: none; align-items: center; gap: 10px; padding: 10px 16px 0; }
+  .seekwrap.show { display: flex; }
+  .seekwrap input[type=range] { flex: 1; accent-color: var(--green); height: 4px; cursor: pointer; }
+  .seektime { font-size: 12px; opacity: .65; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .card-body { padding: 20px 2px 24px; }
+  .sub { opacity: .6; font-style: italic; font-size: 15px; margin-bottom: 14px; line-height: 1.7; }
+  .linkbtn {
+    display: inline-block; background: var(--panel); color: var(--text);
+    border-radius: 8px; padding: 11px 16px; margin-bottom: 18px;
+    font-size: 15px; text-decoration: none;
+  }
+
+  .para { font-size: var(--size); line-height: var(--lh); margin: 0 0 1.5em; white-space: pre-wrap; }
+  .phead {
+    font-size: var(--size); font-weight: 700; color: var(--green);
+    margin: 0 0 1em; line-height: var(--lh);
+  }
+  .hrline { border: 0; border-top: 1px solid; opacity: .2; margin: 6px 0 22px; }
+  .para.reading { background: rgba(147,196,165,.28); border-radius: 4px; }
+  .empty { opacity: .6; font-size: 15px; line-height: 2; text-align: center; padding: 30px 0; }
+
+  .quote {
+    background: var(--panel); border-radius: 8px;
+    padding: 20px 18px; margin: 26px 0 6px;
+    color: var(--text); font-weight: 700; text-align: center;
+    font-size: var(--size); line-height: var(--lh);
+  }
+
+  /* 하이라이트 (문단을 드래그해서 칠하고, 칠한 부분을 다시 누르면 지워진다) */
+  mark.hl{ cursor:pointer; border-radius:3px; padding:.05em .1em; color:#2a2823; }
+  mark.hl-1{ background:#ffe08a; }
+  mark.hl-2{ background:#9fe0b8; }
+  mark.hl-3{ background:#a7c8f5; }
+  .hl-toolbar{
+    position:fixed; z-index:120; display:none; align-items:center; gap:6px;
+    background:var(--bg); border:1px solid var(--panel); border-radius:999px;
+    padding:6px; box-shadow:0 6px 20px rgba(0,0,0,.35);
+  }
+  .hl-swatch{
+    width:26px; height:26px; border-radius:50%; border:2px solid var(--bg);
+    box-shadow:0 0 0 1px rgba(255,255,255,.25); cursor:pointer; padding:0;
+  }
+  .hl-swatch.hl-1{background:#ffe08a;}
+  .hl-swatch.hl-2{background:#9fe0b8;}
+  .hl-swatch.hl-3{background:#a7c8f5;}
+  .hl-swatch:hover{transform:scale(1.1);}
+
+  /* 화자별 말씀 인용 색 — 반투명이라 밝은 테마/어두운 테마 모두에서 보인다 */
+  .sp {
+    border-radius: 3px; padding: .04em .12em;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  }
+  .sp-god     { background: rgba(230,196,90,.26);  box-shadow: inset 0 -2px 0 rgba(230,196,90,.8); }
+  .sp-spirit  { background: rgba(120,210,150,.26); box-shadow: inset 0 -2px 0 rgba(120,210,150,.8); }
+  .sp-jesus   { background: rgba(130,180,245,.26); box-shadow: inset 0 -2px 0 rgba(130,180,245,.8); }
+  .sp-teacher { background: rgba(196,150,240,.26); box-shadow: inset 0 -2px 0 rgba(196,150,240,.8); }
+  .sp-son     { background: rgba(245,150,175,.26); box-shadow: inset 0 -2px 0 rgba(245,150,175,.8); }
+
+  .splegend {
+    display: flex; flex-wrap: wrap; gap: 7px 12px;
+    margin: 0 0 18px; font-size: 13px; opacity: .8;
+  }
+  .splegend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .splegend i { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+
+  .nav { display: flex; gap: 12px; margin-top: 26px; }
+  .navbtn {
+    flex: 1; min-height: 78px; background: var(--panel); border: 0;
+    border-radius: 8px; padding: 12px 14px; color: var(--text);
+    font-family: inherit; cursor: pointer;
+  }
+  .navbtn .k { display: block; opacity: .6; font-size: 14px; margin-bottom: 4px; }
+  .navbtn .v { display: block; font-size: 17px; word-break: keep-all; }
+  .navbtn.left { text-align: left; }
+  .navbtn.right { text-align: right; }
+  .navbtn.mid { flex: 0 0 84px; text-align: center; font-size: 15px; }
+  .navbtn:disabled { opacity: .3; cursor: default; }
+
+  footer { opacity: .6; font-size: 14px; text-align: center; margin-top: 30px; }
+  .warn { color: #d8b45f; font-size: 13px; text-align: center; margin-top: 12px; display: none; }
+
+  /* 공통 모달 */
+  .modal {
+    position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+    background: var(--bg); z-index: 30; display: none;
+    padding: 18px 16px 40px; overflow-y: auto; color: var(--text);
+  }
+  .modal.open { display: block; }
+  .modal .inner { max-width: 780px; margin: 0 auto; }
+  .modal .top { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; }
+  .modal .top h2 { font-size: 20px; margin: 0; flex: 1; }
+  .closebtn {
+    background: var(--green); color: #14180f; border: 0; border-radius: 8px;
+    padding: 0 16px; font-size: 16px; cursor: pointer; min-height: 46px; font-family: inherit;
+  }
+
+  /* 설정 */
+  .set { margin-bottom: 22px; }
+  .set > .name { font-size: 15px; opacity: .7; margin-bottom: 8px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .opt {
+    background: var(--panel); color: var(--text); border: 0; border-radius: 8px;
+    padding: 10px 14px; font-size: 15px; font-family: inherit; cursor: pointer; min-height: 44px;
+  }
+  .opt.sel { background: var(--green); color: #14180f; font-weight: 700; }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .rnd {
+    width: 44px; height: 44px; border-radius: 50%; border: 0;
+    background: var(--panel); color: var(--text); font-size: 20px; cursor: pointer;
+  }
+  .val { color: var(--text); font-weight: 700; font-size: 16px; min-width: 62px; text-align: center; }
+  .colorrow { display: flex; align-items: center; gap: 12px; }
+  .colorrow input[type=color] {
+    width: 62px; height: 44px; border: 0; background: var(--panel);
+    border-radius: 8px; padding: 4px; cursor: pointer;
+  }
+  .colorrow .hex { font-size: 15px; opacity: .7; }
+
+  /* 검색 */
+  #q {
+    flex: 1; background: var(--panel); color: var(--text); border: 0;
+    border-radius: 8px; padding: 12px 14px; font-size: 16px;
+    font-family: inherit; min-height: 46px;
+  }
+  .hit {
+    display: block; width: 100%; text-align: left; background: var(--panel);
+    border: 0; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;
+    color: var(--text); font-family: inherit; font-size: 15px; cursor: pointer;
+  }
+  /* 검색해서 찾은 낱말 */
+  mark.find { background: #ffd54a; color: #2a2823; border-radius: 2px; padding: 0; }
+  mark.find.cur { background: #ff9330; box-shadow: 0 0 0 2px rgba(255,147,48,.45); }
+  .findbar {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px;
+    z-index: 40; display: none; align-items: center; gap: 6px;
+    background: var(--bg); border: 1px solid var(--panel); border-radius: 999px;
+    padding: 6px 8px 6px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+    max-width: calc(100% - 24px);
+  }
+  .findbar .w {
+    font-weight: 700; color: var(--green); max-width: 32vw;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px;
+  }
+  .findbar .c { opacity: .6; font-size: 13px; white-space: nowrap; }
+  .findbar button {
+    width: 36px; height: 36px; border: 0; border-radius: 50%;
+    background: var(--panel); color: var(--text);
+    font-size: 15px; cursor: pointer; font-family: inherit; flex: 0 0 auto;
+  }
+  .searchsum { opacity: .6; font-size: 14px; margin: 0 0 12px; }
+  .searchcat {
+    font-size: 14px; font-weight: 700; color: var(--green);
+    margin: 18px 0 8px; padding-bottom: 4px;
+    border-bottom: 1px solid; border-color: rgba(147,196,165,.3);
+  }
+  .hit b { color: var(--green); }
+
+  /* 말씀 목록: 날짜에 이어 말씀 제목을 죽 쓴다.
+     줄이 넘어가면 날짜 밑까지 써서 폭을 다 쓴다. */
+  .mrow { margin-bottom: 8px; }
+  .mrow .hit {
+    margin-bottom: 0; padding: 10px 13px;
+    line-height: 1.6;              /* 목록은 줄 간격 설정을 따르지 않고 촘촘하게 */
+    word-break: keep-all;          /* 낱말 가운데서 끊기지 않게 */
+  }
+  .mrow .date { color: var(--green); font-weight: 700; white-space: nowrap; margin-right: 8px; }
+  .mrow .mtitle { opacity: .85; }
+  .hit .snip { display: block; opacity: .6; font-size: 14px; margin-top: 4px; line-height: 1.6; }
+
+  /* 잠금화면 */
+  .lock {
+    position: fixed; inset: 0; z-index: 50;
+    background: var(--bg); color: var(--text);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .lock.hidden { display: none; }
+  .lockbox { width: 100%; max-width: 300px; text-align: center; }
+  .locktitle { font-size: 18px; margin-bottom: 18px; }
+  .lockbox input {
+    width: 100%; background: var(--panel); color: var(--text); border: 0;
+    border-radius: 8px; padding: 14px; font-size: 22px; text-align: center;
+    letter-spacing: .4em; font-family: inherit; margin-bottom: 12px;
+  }
+  .lockbtn {
+    width: 100%; background: var(--green); color: #14180f; border: 0;
+    border-radius: 8px; padding: 14px; font-size: 16px; font-weight: 700;
+    cursor: pointer; font-family: inherit; min-height: 46px;
+  }
+  .lockwarn { color: #d8837f; font-size: 14px; margin-top: 12px; display: none; }
+</style>
+</head>
+<body>
+
+<div class="lock" id="lock">
+  <div class="lockbox">
+    <div class="locktitle">비밀번호를 입력하세요</div>
+    <input id="pw" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
+    <button class="lockbtn" id="pwok">확인</button>
+    <div class="lockwarn" id="pwwarn">비밀번호가 틀렸습니다.</div>
+  </div>
+</div>
+
+<div class="wrap" id="wrap">
+  <nav class="tabs">
+    <a class="tab" href="/sayeon/">성령사연</a>
+    <a class="tab" href="/sayeon/stones/">월명동사연</a>
+    <span class="tab on" aria-current="page">말씀</span>
+  </nav>
+  <div class="headrow">
+    <h1 class="head">2026년 말씀</h1>
+  </div>
+  <div class="topbar">
+    <button class="topbtn" id="openlist">📋 목록</button>
+    <button class="topbtn" id="opensettings">⚙ 설정</button>
+    <button class="topbtn" id="opensearch">🔍 검색</button>
+    <button class="topbtn" id="installBtn" style="display:none">📲 앱 설치</button>
+  </div>
+
+  <div class="total" id="total"></div>
+  <hr class="sep">
+
+  <div class="card">
+    <div class="card-head">
+      <div class="t"><span id="ctitle"></span></div>
+      <div class="card-head-actions">
+        <button class="speakbtn readminus" id="readCountMinus" type="button" aria-label="읽은 횟수 1회 줄이기" disabled>−</button>
+        <button class="speakbtn readcount" id="readCountBtn" type="button" aria-label="다 읽었으면 눌러서 기록">다 읽음</button>
+        <button class="speakbtn" id="speak">🔊 듣기</button>
+      </div>
+    </div>
+    <div class="seekwrap" id="seekWrap">
+      <input type="range" id="seekRange" min="0" max="1000" value="0" step="1" aria-label="재생 위치">
+      <span class="seektime" id="seekTime"></span>
+    </div>
+    <div class="card-body">
+      <div class="sub" id="csub"></div>
+      <a class="linkbtn" id="clink" target="_blank" rel="noopener" style="display:none"></a>
+      <div class="splegend" id="splegend"></div>
+      <div id="body"></div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="navbtn left" id="prev"><span class="k">이전</span><span class="v" id="prevT"></span></button>
+    <button class="navbtn mid" id="navlist">목록</button>
+    <button class="navbtn right" id="next"><span class="k">다음</span><span class="v" id="nextT"></span></button>
+  </div>
+
+  <footer>말씀 자료실</footer>
+  <div class="warn" id="warn">이 브라우저에서는 읽어주기를 지원하지 않습니다.</div>
+</div>
+
+
+<div class="findbar" id="findBar">
+  <span class="w" id="findWord"></span>
+  <span class="c" id="findCount"></span>
+  <button id="findBack" aria-label="검색 결과로 돌아가기">↩</button>
+  <button id="findPrev" aria-label="이전 낱말">▲</button>
+  <button id="findNext" aria-label="다음 낱말">▼</button>
+  <button id="findClose" aria-label="찾기 끝내기">✕</button>
+</div>
+
+<audio id="player"></audio>
+
+<audio id="silentAnchor" loop playsinline preload="auto" src="data:audio/wav;base64,UklGRmQfAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAfAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=="></audio>
+<div class="hl-toolbar" id="hlToolbar" role="menu" aria-label="하이라이트 색 선택">
+  <button type="button" class="hl-swatch hl-1" data-c="1" aria-label="노란색으로 칠하기"></button>
+  <button type="button" class="hl-swatch hl-2" data-c="2" aria-label="초록색으로 칠하기"></button>
+  <button type="button" class="hl-swatch hl-3" data-c="3" aria-label="파란색으로 칠하기"></button>
+</div>
+
+<!-- 목록 -->
+<div class="modal" id="listmodal">
+  <div class="inner">
+    <div class="top">
+      <h2>목록</h2>
+      <button class="closebtn" id="closelist">닫기</button>
+    </div>
+    <div id="listresults"></div>
+  </div>
+</div>
+
+<!-- 검색 -->
+<div class="modal" id="search">
+  <div class="inner">
+    <div class="top">
+      <input id="q" type="search" placeholder="성령사연·월명동·말씀 전체 검색">
+      <button class="closebtn" id="closeq">닫기</button>
+    </div>
+    <div id="results"></div>
+  </div>
+</div>
+
+<script>
+/* ===== 사연 데이터 =====
+   내용은 같은 폴더의 sayeon.json 파일에 들어 있습니다.
+   편을 추가하려면 sayeon.json 만 고치면 됩니다. 이 파일은 건드릴 필요 없습니다.
+   형식:
+   {
+     "no": 155,
+     "title": "성령 사연 155",
+     "subtitle": "(성령님 말씀)",
+     "paragraphs": [
+       ["한 문단의 첫 줄", "둘째 줄"],
+       { "h": "<소제목>" },
+       { "hr": true },
+       ["다음 문단"]
+     ],
+     "quote": "강조 박스에 넣을 문장 (없으면 생략)",
+     "link": { "label": "영상 보기", "url": "https://..." }
+   }
+*/
+var MAL = [];
+SayeonAnalytics.trackSectionVisit("malsseum");
+var DATA_URL = "malsseum.json";
+
+/* ===== 설정 =====
+   설정 화면과 저장은 settings.js 한 곳에 있다(세 페이지가 같이 쓴다).
+   여기서는 바뀐 값을 받아 이 화면에 입히기만 한다. */
+var cfg = null;
+
+function $(id) { return document.getElementById(id); }
+function setVar(n, v) { document.documentElement.style.setProperty(n, v); }
+
+/* 위 상태바 색을 지금 화면의 배경색에 맞춘다.
+   설정에서 테마나 배경색을 바꾸면 상태바도 따라 바뀐다. */
+function syncThemeColor() {
+  var meta = document.querySelector('meta[name="theme-color"]');
+  var bg = getComputedStyle(document.body).backgroundColor;
+  if (!bg || bg === "rgba(0, 0, 0, 0)" || bg === "transparent") return;
+  if (meta) meta.setAttribute("content", bg);
+
+  // 아이폰은 상태바 글자색을 따로 정해 줘야 한다.
+  // 배경이 밝으면 검은 글자(default), 어두우면 흰 글자(black).
+  var m = bg.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (!m) return;
+  var light = (m[1] * 299 + m[2] * 587 + m[3] * 114) / 1000 > 140;
+  var ios = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if (ios) ios.setAttribute("content", light ? "default" : "black");
+}
+
+function applyCfg() {
+  setVar("--size", cfg.size + "px");
+  setVar("--lh", String(cfg.lh));
+  setVar("--pad", cfg.pad + "px");
+  setVar("--font", cfg.fontFamily);
+  setVar("--bg", cfg.bg);
+  setVar("--text", cfg.text);
+  if (player) player.playbackRate = cfg.rate;
+  syncThemeColor();
+}
+
+/* ===== 하이라이트 (편별로 이 브라우저에만 저장, 3색) ===== */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+/* ===== N독 (다 읽음) 카운트: 편별로 이 브라우저에만 저장 ===== */
+function readCountKey(epNum) { return "malReadCount_" + epNum; }
+function getReadCount(epNum) {
+  return parseInt(localStorage.getItem(readCountKey(epNum)), 10) || 0;
+}
+function bumpReadCount(epNum) {
+  var n = getReadCount(epNum) + 1;
+  try { localStorage.setItem(readCountKey(epNum), String(n)); } catch (e) {}
+  return n;
+}
+function lowerReadCount(epNum) {
+  var n = Math.max(0, getReadCount(epNum) - 1);
+  try {
+    if (n === 0) localStorage.removeItem(readCountKey(epNum));
+    else localStorage.setItem(readCountKey(epNum), String(n));
+  } catch (e) {}
+  return n;
+}
+
+function hlKey(epNum) { return "malHl_" + epNum; }
+function getHighlights(epNum) {
+  try { return JSON.parse(localStorage.getItem(hlKey(epNum)) || "[]"); } catch (e) { return []; }
+}
+function setHighlights(epNum, list) {
+  try { localStorage.setItem(hlKey(epNum), JSON.stringify(list)); } catch (e) {}
+}
+// 한 줄(제목/인용문)짜리 텍스트에 하이라이트를 입혀 HTML 문자열로 만든다
+function renderTextWithHighlights(text, hls) {
+  if (!hls.length) return escapeHtml(text);
+  var sorted = hls.slice().sort(function (a, b) { return a.start - b.start; });
+  var out = "", pos = 0;
+  for (var i = 0; i < sorted.length; i++) {
+    var h = sorted[i];
+    if (h.start < pos) continue;
+    out += escapeHtml(text.slice(pos, h.start));
+    out += '<mark class="hl hl-' + h.color + '" data-pi="' + h.pi + '" data-start="' + h.start + '" data-end="' + h.end + '">' +
+      escapeHtml(text.slice(h.start, h.end)) + '</mark>';
+    pos = h.end;
+  }
+  out += escapeHtml(text.slice(pos));
+  return out;
+}
+// 줄바꿈(<br>)이 있는 문단: 오프셋은 줄들을 이어붙인(구분자 없는) 기준이며,
+// <br>은 글자를 차지하지 않는다는 점(브라우저의 Range 계산과 동일)을 그대로 따른다.
+function renderLinesWithHighlights(lines, hls) {
+  var sorted = hls.slice().sort(function (a, b) { return a.start - b.start; });
+  var htmlParts = [], pos = 0;
+  for (var li = 0; li < lines.length; li++) {
+    if (li > 0) htmlParts.push("<br>");
+    var lineText = lines[li];
+    var lineStart = pos, lineEnd = pos + lineText.length;
+    var out = "", cur = lineStart;
+    for (var i = 0; i < sorted.length; i++) {
+      var h = sorted[i];
+      if (h.end <= lineStart || h.start >= lineEnd) continue;
+      var s = Math.max(h.start, lineStart), e = Math.min(h.end, lineEnd);
+      if (s < cur) continue;
+      out += escapeHtml(lineText.slice(cur - lineStart, s - lineStart));
+      out += '<mark class="hl hl-' + h.color + '" data-pi="' + h.pi + '" data-start="' + h.start + '" data-end="' + h.end + '">' +
+        escapeHtml(lineText.slice(s - lineStart, e - lineStart)) + '</mark>';
+      cur = e;
+    }
+    out += escapeHtml(lineText.slice(cur - lineStart));
+    htmlParts.push(out);
+    pos = lineEnd;
+  }
+  return htmlParts.join("");
+}
+/* ===== 화자별 말씀 인용 =====
+   문단은 ["줄", ...] 또는 {p:["줄", ...], sp:["god", ...]} 두 가지 꼴이다.
+   sp 는 그 문단에 나오는 “…” 인용을 순서대로 누구 말씀인지 적어 둔 것이다. */
+var SPEAKER_NAME = {
+  god: "하나님", spirit: "성령님", jesus: "예수님",
+  teacher: "선생님", son: "성자"
+};
+function linesOf(item) { return (item && item.p) ? item.p : item; }
+function spOf(item) { return (item && item.p) ? item.sp : null; }
+
+// 문단 안 “…” 인용의 위치를 찾아 화자 구간 목록으로 만든다.
+// 오프셋은 줄들을 구분자 없이 이어붙인 기준 — 수동 하이라이트와 같은 기준이다.
+function speakerRanges(lines, sp) {
+  if (!sp || !sp.length) return [];
+  var text = lines.join(""), out = [], qi = 0, i = 0;
+  while (i < text.length && qi < sp.length) {
+    var open = text.indexOf("“", i);
+    if (open < 0) break;
+    var close = text.indexOf("”", open + 1);
+    var end = (close < 0) ? text.length : close + 1;
+    if (sp[qi]) out.push({ start: open, end: end, sp: sp[qi] });
+    qi++;
+    i = end;
+  }
+  return out;
+}
+
+// 직접 칠한 하이라이트가 화자색보다 우선한다. 겹치는 화자 구간은 잘라 낸다.
+function mergeSpans(hls, sps) {
+  var out = [], i, j, k;
+  for (i = 0; i < hls.length; i++) {
+    out.push({ start: hls[i].start, end: hls[i].end, mark: hls[i] });
+  }
+  for (i = 0; i < sps.length; i++) {
+    var pieces = [{ start: sps[i].start, end: sps[i].end }];
+    for (j = 0; j < hls.length; j++) {
+      var next = [];
+      for (k = 0; k < pieces.length; k++) {
+        var p = pieces[k], h = hls[j];
+        if (h.end <= p.start || h.start >= p.end) { next.push(p); continue; }
+        if (h.start > p.start) next.push({ start: p.start, end: h.start });
+        if (h.end < p.end) next.push({ start: h.end, end: p.end });
+      }
+      pieces = next;
+    }
+    for (k = 0; k < pieces.length; k++) {
+      out.push({ start: pieces[k].start, end: pieces[k].end, sp: sps[i].sp });
+    }
+  }
+  out.sort(function (a, b) { return a.start - b.start; });
+  return out;
+}
+
+// 화자 구간과 수동 하이라이트를 함께 입혀 문단 HTML을 만든다
+function renderParagraph(item, hls) {
+  var lines = linesOf(item);
+  var spans = mergeSpans(hls, speakerRanges(lines, spOf(item)));
+  var htmlParts = [], pos = 0;
+  for (var li = 0; li < lines.length; li++) {
+    if (li > 0) htmlParts.push("<br>");
+    var lineText = lines[li];
+    var lineStart = pos, lineEnd = pos + lineText.length;
+    var out = "", cur = lineStart;
+    for (var i = 0; i < spans.length; i++) {
+      var sp = spans[i];
+      if (sp.end <= lineStart || sp.start >= lineEnd) continue;
+      var s = Math.max(sp.start, lineStart), e = Math.min(sp.end, lineEnd);
+      if (s < cur) continue;
+      out += escapeHtml(lineText.slice(cur - lineStart, s - lineStart));
+      var inner = escapeHtml(lineText.slice(s - lineStart, e - lineStart));
+      if (sp.mark) {
+        var h = sp.mark;
+        out += '<mark class="hl hl-' + h.color + '" data-pi="' + h.pi +
+          '" data-start="' + h.start + '" data-end="' + h.end + '">' + inner + '</mark>';
+      } else {
+        out += '<span class="sp sp-' + sp.sp + '">' + inner + '</span>';
+      }
+      cur = e;
+    }
+    out += escapeHtml(lineText.slice(cur - lineStart));
+    htmlParts.push(out);
+    pos = lineEnd;
+  }
+  return htmlParts.join("");
+}
+
+// 이 편에 실제로 나오는 화자만 범례로 보여 준다
+function buildLegend(s) {
+  var box = $("splegend");
+  box.innerHTML = "";
+  var seen = {}, order = [], ps = s.paragraphs || [];
+  for (var i = 0; i < ps.length; i++) {
+    var sp = spOf(ps[i]);
+    if (!sp) continue;
+    for (var j = 0; j < sp.length; j++) {
+      if (sp[j] && !seen[sp[j]]) { seen[sp[j]] = 1; order.push(sp[j]); }
+    }
+  }
+  for (var k = 0; k < order.length; k++) {
+    var row = document.createElement("span");
+    var chip = document.createElement("i");
+    chip.className = "sp sp-" + order[k];
+    row.appendChild(chip);
+    row.appendChild(document.createTextNode(SPEAKER_NAME[order[k]] + " 말씀"));
+    box.appendChild(row);
+  }
+}
+
+function paintHighlights() {
+  var s = MAL[idx];
+  var epNum = numOf(s, idx);
+  var hls = getHighlights(epNum);
+  var els = document.querySelectorAll("#body [data-pi]");
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    var pi = Number(el.getAttribute("data-pi"));
+    var mine = hls.filter(function (h) { return h.pi === pi; });
+    if (el.className === "quote") {
+      el.innerHTML = renderTextWithHighlights('"' + s.quote + '"', mine);
+    } else if (el.className === "phead") {
+      var item = s.paragraphs[pi];
+      el.innerHTML = renderTextWithHighlights(item.h, mine);
+    } else {
+      el.innerHTML = renderParagraph(s.paragraphs[pi], mine);
+    }
+  }
+  applyFind();
+}
+function removeHighlightAt(markEl) {
+  var container = markEl.closest("[data-pi]");
+  if (!container) return;
+  var pi = Number(markEl.getAttribute("data-pi"));
+  var start = Number(markEl.getAttribute("data-start"));
+  var end = Number(markEl.getAttribute("data-end"));
+  var s = MAL[idx];
+  var epNum = numOf(s, idx);
+  var hls = getHighlights(epNum).filter(function (h) {
+    return !(h.pi === pi && h.start === start && h.end === end);
+  });
+  setHighlights(epNum, hls);
+  paintHighlights();
+}
+var pendingHl = null;
+function closestPi(node) {
+  var el = node.nodeType === 3 ? node.parentElement : node;
+  return el ? el.closest("[data-pi]") : null;
+}
+function offsetWithin(el, node, nodeOffset) {
+  var r = document.createRange();
+  r.selectNodeContents(el);
+  r.setEnd(node, nodeOffset);
+  return r.toString().length;
+}
+function showHlToolbar(range) {
+  var rect = range.getBoundingClientRect();
+  var tb = $("hlToolbar");
+  tb.style.display = "flex";
+  var tbWidth = tb.offsetWidth || 120;
+  var tbHeight = tb.offsetHeight || 40;
+  var left = rect.left + rect.width / 2 - tbWidth / 2;
+  left = Math.min(Math.max(8, left), window.innerWidth - tbWidth - 8);
+  var top = rect.bottom + 10;
+  top = Math.min(top, window.innerHeight - tbHeight - 8);
+  top = Math.max(8, top);
+  tb.style.left = left + "px";
+  tb.style.top = top + "px";
+}
+function hideHlToolbar() {
+  pendingHl = null;
+  if ($("hlToolbar")) $("hlToolbar").style.display = "none";
+}
+function applyPendingHighlight(color) {
+  if (!pendingHl) return;
+  var s = MAL[idx];
+  var epNum = numOf(s, idx);
+  var hls = getHighlights(epNum).filter(function (h) {
+    return h.pi !== pendingHl.pi || h.end <= pendingHl.start || h.start >= pendingHl.end;
+  });
+  hls.push({ pi: pendingHl.pi, start: pendingHl.start, end: pendingHl.end, color: color });
+  setHighlights(epNum, hls);
+  hideHlToolbar();
+  window.getSelection().removeAllRanges();
+  paintHighlights();
+}
+function evaluateSelection() {
+  var sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) { hideHlToolbar(); return; }
+  var range = sel.getRangeAt(0);
+  var startEl = closestPi(range.startContainer);
+  var endEl = closestPi(range.endContainer);
+  var bodyEl = $("body");
+  if (!startEl || startEl !== endEl || !bodyEl.contains(startEl)) { hideHlToolbar(); return; }
+  var start = offsetWithin(startEl, range.startContainer, range.startOffset);
+  var end = offsetWithin(startEl, range.endContainer, range.endOffset);
+  if (end <= start) { hideHlToolbar(); return; }
+  pendingHl = { pi: Number(startEl.getAttribute("data-pi")), start: start, end: end };
+  showHlToolbar(range);
+}
+
+/* ===== 뷰어 ===== */
+var idx = 0;
+
+function numOf(s, i) { return (s && s.no) ? s.no : (i + 1); }
+function shortTitle(s, i) { return s.short ? s.short : (numOf(s, i) + "편"); }
+function fullTitle(s, i) { return s.title || (numOf(s, i) + "편"); }
+
+function render(keepSpeaking) {
+  if (!keepSpeaking) stopSpeak();
+  var s = MAL[idx];
+  updateSpeakBtn();
+  $("total").textContent = "총 " + MAL.length + "편";
+  $("ctitle").textContent = s.title || "";
+  var sub = $("csub");
+  sub.innerHTML = "";
+  if (s.subtitle) {
+    var subs = (typeof s.subtitle === "string") ? [s.subtitle] : s.subtitle;
+    for (var si = 0; si < subs.length; si++) {
+      if (si > 0) sub.appendChild(document.createElement("br"));
+      sub.appendChild(document.createTextNode(subs[si]));
+    }
+  }
+
+  var lk = $("clink");
+  if (s.link) {
+    lk.href = s.link.url;
+    lk.textContent = s.link.label || "영상 보기";
+    lk.style.display = "inline-block";
+  } else {
+    lk.style.display = "none";
+  }
+
+  hideHlToolbar();
+  var epNum = numOf(s, idx);
+  SayeonAnalytics.trackPage("malsseum", epNum, fullTitle(s, idx), "2026");
+  var hls = getHighlights(epNum);
+  var rc = getReadCount(epNum);
+  $("readCountBtn").textContent = rc > 0 ? rc + "독" : "다 읽음";
+  $("readCountBtn").classList.toggle("done", rc > 0);
+  $("readCountMinus").disabled = rc === 0;
+  buildLegend(s);
+  var body = $("body");
+  body.innerHTML = "";
+
+  if (!s.paragraphs || s.paragraphs.length === 0) {
+    var d = document.createElement("div");
+    d.className = "empty";
+    d.textContent = "아직 내용이 입력되지 않았습니다.";
+    body.appendChild(d);
+  } else {
+    for (var pi = 0; pi < s.paragraphs.length; pi++) {
+      var item = s.paragraphs[pi];
+      if (item && item.hr) {
+        body.appendChild(document.createElement("hr")).className = "hrline";
+        continue;
+      }
+      if (item && item.h) {
+        var hd = document.createElement("div");
+        hd.className = "phead";
+        hd.setAttribute("data-pi", pi);
+        hd.innerHTML = renderTextWithHighlights(item.h, hls.filter(function(h){ return h.pi === pi; }));
+        body.appendChild(hd);
+        continue;
+      }
+      var p = document.createElement("p");
+      p.className = "para";
+      p.setAttribute("data-pi", pi);
+      p.innerHTML = renderParagraph(item, hls.filter(function(h){ return h.pi === pi; }));
+      body.appendChild(p);
+    }
+  }
+
+  if (s.quote) {
+    var qb = document.createElement("div");
+    qb.className = "quote";
+    qb.setAttribute("data-pi", -1);
+    qb.innerHTML = renderTextWithHighlights('"' + s.quote + '"', hls.filter(function(h){ return h.pi === -1; }));
+    body.appendChild(qb);
+  }
+
+  var pv = $("prev"), nx = $("next");
+  pv.disabled = (idx === 0);
+  nx.disabled = (idx === MAL.length - 1);
+  $("prevT").textContent = pv.disabled ? "" : shortTitle(MAL[idx - 1], idx - 1);
+  $("nextT").textContent = nx.disabled ? "" : shortTitle(MAL[idx + 1], idx + 1);
+
+  window.scrollTo(0, 0);
+  applyFind();
+}
+
+function go(delta) {
+  var n = idx + delta;
+  if (n < 0 || n >= MAL.length) return;
+  idx = n;
+  render();
+}
+
+/* ===== 읽어주기 ===== */
+var synth = window.speechSynthesis;
+var queue = [], qi = 0, speaking = false;
+
+if (!synth) { $("speak").disabled = true; $("warn").style.display = "block"; }
+
+/* ===== 목소리 =====
+   녹음이 아직 없는 편만 기기가 그 자리에서 읽어 준다.
+   기기에 있는 한국어 목소리 중 구글 것을 먼저 쓴다(고르는 화면은 없앴다). */
+
+// 'kok'(코카니어) 처럼 ko 로 시작만 하는 다른 언어가 섞이지 않게 정확히 걸러낸다
+function isKorean(v) {
+  if (!v || !v.lang) return false;
+  var l = v.lang.toLowerCase().replace("_", "-");
+  return l === "ko" || l.indexOf("ko-") === 0;
+}
+
+function koVoices() {
+  if (!synth || !synth.getVoices) return [];
+  return synth.getVoices().filter(isKorean);
+}
+
+function isGoogle(v) { return /google|구글/i.test(v.name) || /^ko-kr-x-/i.test(v.voiceURI || ""); }
+
+function voiceId(v) { return v.voiceURI || v.name; }
+
+function pickVoice() {
+  var vs = koVoices(), i;
+  if (!vs.length) return null;
+  for (i = 0; i < vs.length; i++) { if (isGoogle(vs[i])) return vs[i]; }
+  return vs[0];
+}
+
+/* ===== 듣는 동안 화면이 꺼지지 않게 =====
+   화면 잠금은 탭이 보이는 동안에만 걸 수 있고, 화면이 꺼지면 저절로 풀린다.
+   그래서 다시 보이게 될 때 듣는 중이면 잠금을 새로 건다. */
+var wakeLock = null;
+function requestWakeLock() {
+  if (!("wakeLock" in navigator) || wakeLock) return;
+  try {
+    navigator.wakeLock.request("screen").then(function (wl) {
+      wakeLock = wl;
+      wl.addEventListener("release", function () { wakeLock = null; });
+    }).catch(function () {});
+  } catch (e) {}
+}
+function releaseWakeLock() {
+  if (!wakeLock) return;
+  try { wakeLock.release(); } catch (e) {}
+  wakeLock = null;
+}
+document.addEventListener("visibilitychange", function () {
+  if (document.visibilityState === "visible" && speaking) requestWakeLock();
+});
+
+function highlight(pi) {
+  var ps = document.querySelectorAll(".para");
+  for (var i = 0; i < ps.length; i++) {
+    var on = (Number(ps[i].getAttribute("data-pi")) === pi);
+    ps[i].className = on ? "para reading" : "para";
+    if (on && ps[i].scrollIntoView) {
+      try { ps[i].scrollIntoView({ behavior: "smooth", block: "center" }); }
+      catch (e) { ps[i].scrollIntoView(); }
+    }
+  }
+}
+
+var player = $("player");
+
+/* ===== 재생 위치 막대 (듣는 중 어디서든 이어 시작) ===== */
+var seekWrap = $("seekWrap"), seekRange = $("seekRange"), seekTime = $("seekTime");
+var seekDragging = false;
+function showSeek() { seekWrap.className = "seekwrap show"; }
+function hideSeek() { seekWrap.className = "seekwrap"; }
+function fmtTime(t) {
+  if (!isFinite(t) || t < 0) t = 0;
+  var m = Math.floor(t / 60), sec = Math.floor(t % 60);
+  return m + ":" + (sec < 10 ? "0" : "") + sec;
+}
+function updateSeekAudio() {
+  if (seekDragging) return;
+  var d = player.duration;
+  if (isFinite(d) && d > 0) {
+    seekRange.value = Math.round((player.currentTime / d) * 1000);
+    seekTime.textContent = fmtTime(player.currentTime) + " / " + fmtTime(d);
+  }
+}
+function updateSeekQueue() {
+  if (seekDragging) return;
+  var total = queue.length || 1;
+  seekRange.value = Math.round((qi / total) * 1000);
+  seekTime.textContent = (qi + 1) + " / " + total;
+}
+player.addEventListener("timeupdate", updateSeekAudio);
+player.addEventListener("loadedmetadata", updateSeekAudio);
+seekRange.addEventListener("input", function () { seekDragging = true; });
+seekRange.addEventListener("change", function () {
+  seekDragging = false;
+  var frac = Number(seekRange.value) / 1000;
+  var s = MAL[idx];
+  if (s && s.audio) {
+    var d = player.duration;
+    if (isFinite(d) && d > 0) player.currentTime = frac * d;
+  } else if (queue.length) {
+    var target = Math.min(queue.length - 1, Math.floor(frac * queue.length));
+    qi = target;
+    if (synth) synth.cancel();
+    if (speaking) speakNext();
+  }
+});
+
+/* ===== 잠금화면/미디어 컨트롤에 재생 정보를 알려 백그라운드 재생을 돕는다 ===== */
+function updateMediaSession(playing) {
+  if (!("mediaSession" in navigator)) return;
+  try {
+    var s = MAL[idx];
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: s.title || "",
+      artist: "2026년 말씀"
+    });
+    navigator.mediaSession.playbackState = playing ? "playing" : "paused";
+    navigator.mediaSession.setActionHandler("play", function () { if (!speaking) startSpeak(); });
+    navigator.mediaSession.setActionHandler("pause", function () { if (speaking) stopSpeak(); });
+    navigator.mediaSession.setActionHandler("previoustrack", function () {
+      var was = speaking; go(-1); if (was) startSpeak();
+    });
+    navigator.mediaSession.setActionHandler("nexttrack", function () {
+      var was = speaking; go(1); if (was) startSpeak();
+    });
+  } catch (e) {}
+}
+
+function updateSpeakBtn() {
+  var s = MAL[idx];
+  var human = !!(s && s.audio && !s.tts);   // 컴퓨터 목소리는 육성이 아니다
+  var btn = $("speak");
+  btn.className = "speakbtn" + (human ? " human" : "") + (speaking ? " on" : "");
+  btn.textContent = speaking ? "■ 정지" : ((human ? "🎙️" : "🤖") + " 듣기");
+}
+
+function advanceOrStop(completed) {
+  // 끝까지 들었을 때만 되풀이한다. 파일을 못 읽어 멈춘 것이면 그대로 선다.
+  if (speaking && cfg.autoMode === "repeat" && completed) {
+    setTimeout(function () { if (speaking && cfg.autoMode === "repeat") startSpeak(); }, 700);
+  } else if (speaking && cfg.autoMode === "next" && idx < MAL.length - 1) {
+    idx++;
+    render(true);
+    setTimeout(function () { if (speaking) startSpeak(); }, 1000);
+  } else if (speaking && cfg.autoMode === "prev" && idx > 0) {
+    idx--;
+    render(true);
+    setTimeout(function () { if (speaking) startSpeak(); }, 1000);
+  } else {
+    stopSpeak();
+  }
+}
+
+/* ===== 육성 낭독에 맞춰 문단 짚어 주기 =====
+   녹음마다 '몇 초에 어느 문단을 읽는지'를 audio/sync.json 에 미리 넣어 두었다.
+   (녹음을 받아쓴 뒤 원고에 시간을 맞춰 붙여 만든 것이다)
+   시간 자료가 없는 편은 그냥 넘어간다. */
+var SYNC = null, syncTimes = null, syncPi = -1;
+
+function loadSync() {
+  if (SYNC !== null) return;
+  SYNC = {};
+  var xhr = new XMLHttpRequest();
+  // 편을 새로 넣으면 시간 자료도 같이 바뀌므로, 캐시된 옛 파일을 쓰지 않게 한다
+  xhr.open("GET", "audio/sync.json?v=" + (new Date()).getTime(), true);
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState !== 4) return;
+    try { SYNC = JSON.parse(xhr.responseText) || {}; } catch (e) { SYNC = {}; }
+  };
+  try { xhr.send(null); } catch (e) {}
+}
+
+function startSyncFollow(s) {
+  syncTimes = null;
+  syncPi = -1;
+}
+
+// 말씀 번호는 과거 자료와 겹칠 수 있으므로 음성 파일명(예: 0913)을
+// 우선 키로 쓴다. 예전 시간표는 기존 말씀 번호도 계속 지원한다.
+function syncFor(s, i) {
+  if (!SYNC || !s) return null;
+  var m = s.audio && s.audio.match(/(?:^|\/)(\d+)\.[^.]+$/);
+  if (m && SYNC[m[1]]) return SYNC[m[1]];
+  return SYNC[String(numOf(s, i))] || null;
+}
+
+player.ontimeupdate = function () {
+  if (!speaking) return;
+  // sync.json 이 늦게 도착할 수 있으므로, 아직 없으면 재생 중에도 다시 찾는다
+  if (!syncTimes && SYNC) syncTimes = syncFor(MAL[idx], idx);
+  if (!syncTimes) return;
+  var t = player.currentTime, pi = -1;
+  for (var i = 0; i < syncTimes.length; i++) {
+    if (t + 0.15 >= syncTimes[i]) pi = i; else break;
+  }
+  if (pi >= 0 && pi !== syncPi) { syncPi = pi; highlight(pi); }
+};
+
+player.onended = function () { advanceOrStop(true); };
+player.onerror = function () { advanceOrStop(false); };
+
+function speakNext() {
+  if (qi >= queue.length) { advanceOrStop(true); return; }
+  var item = queue[qi];
+  var u = new SpeechSynthesisUtterance(item.text);
+  u.lang = "ko-KR";
+  var v = pickVoice();
+  if (v) u.voice = v;
+  u.rate = cfg.rate;
+  u.onstart = function () { highlight(item.pi); updateSeekQueue(); };
+  u.onend = function () { qi++; if (speaking) speakNext(); };
+  u.onerror = function () { qi++; if (speaking) speakNext(); };
+  synth.speak(u);
+}
+
+// 육성 녹음이 있는 편도, 이어 들을 때 몇 편인지 알 수 있게
+// 제목을 짧게 TTS로 먼저 읽고 나서 실제 녹음을 재생한다
+function speakTitleThenPlayAudio(s) {
+  if (!synth) { playAudioNow(s); return; }
+  var u = new SpeechSynthesisUtterance(s.title);
+  u.lang = "ko-KR";
+  var v = pickVoice();
+  if (v) u.voice = v;
+  u.rate = cfg.rate;
+  u.onend = function () { if (speaking) playAudioNow(s); };
+  u.onerror = function () { if (speaking) playAudioNow(s); };
+  synth.cancel();
+  synth.speak(u);
+}
+function playAudioNow(s) {
+  var silentAnchor = document.getElementById("silentAnchor");
+  if (silentAnchor) silentAnchor.pause();
+  startSyncFollow(s);
+  player.src = s.audio;
+  player.playbackRate = cfg.rate;
+  player.currentTime = 0;
+  player.play();
+}
+
+function startSpeak() {
+  var s = MAL[idx];
+  speaking = true;
+  requestWakeLock();
+  updateSpeakBtn();
+  showSeek();
+  seekTime.textContent = "";
+  updateMediaSession(true);
+
+  var silentAnchor = document.getElementById("silentAnchor");
+  if (s.audio) {
+    speakTitleThenPlayAudio(s);
+    return;
+  }
+  if (silentAnchor) silentAnchor.play().catch(function () {});
+
+  if (!s.paragraphs || !s.paragraphs.length) { speaking = false; return; }
+  queue = [{ pi: -2, text: s.title }];
+  for (var i = 0; i < s.paragraphs.length; i++) {
+    var it = s.paragraphs[i];
+    if (it && it.hr) continue;
+    queue.push({ pi: i, text: (it && it.h) ? it.h : linesOf(it).join(" ") });
+  }
+  if (s.quote) queue.push({ pi: -1, text: s.quote });
+  qi = 0;
+  synth.cancel();
+  speakNext();
+}
+
+function stopSpeak() {
+  speaking = false;
+  syncTimes = null; syncPi = -1;
+  releaseWakeLock();
+  if (synth) synth.cancel();
+  player.pause();
+  var silentAnchorS = document.getElementById("silentAnchor");
+  if (silentAnchorS) silentAnchorS.pause();
+  queue = []; qi = 0;
+  updateSpeakBtn();
+  hideSeek();
+  updateMediaSession(false);
+  var ps = document.querySelectorAll(".para");
+  for (var i = 0; i < ps.length; i++) { ps[i].className = "para"; }
+}
+
+/* ===== 검색 ===== */
+/* 어느 페이지에서든 세 카테고리를 모두 찾는다 */
+var SEARCH_SOURCES = [
+  { label: "성령사연 2026", kind: "sayeon", url: "/sayeon/sayeon.json", base: "/sayeon/", year: "2026" },
+  { label: "성령사연 2025", kind: "sayeon", url: "/sayeon/sayeon2025.json", base: "/sayeon/", year: "2025" },
+  { label: "월명동사연", kind: "stones", url: "/sayeon/stones/stones.json", base: "/sayeon/stones/" },
+  { label: "말씀", kind: "sayeon", url: "malsseum.json", base: "",
+    local: function () { return MAL; } }
+];
+
+// 검색 결과를 눌렀을 때: 같은 페이지면 바로 넘기고, 다른 페이지면 주소로 넘어간다
+function gotoHit(src, h) {
+  var kw = $("q").value.replace(/^\s+|\s+$/g, "");
+  if (src.base === "") { idx = h.idx; findQuery = kw; closeAll(); render(); return; }
+  location.href = src.base + "#n=" + encodeURIComponent(h.item.no || h.item.num) +
+    (src.year ? "&y=" + src.year : "") + "&q=" + encodeURIComponent(kw);
+}
+
+
+/* 다른 카테고리의 검색 결과에서 넘어왔을 때 (#n=22&y=2025) 그 편을 펼쳐 준다 */
+function hashParam(name) {
+  var m = (location.hash || "").match(new RegExp("[#&]" + name + "=([^&]*)"));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function jumpToHashItem() {
+  var q = hashParam("q");
+  if (q) findQuery = q;
+  var no = hashParam("n");
+  if (no === null) return false;
+  for (var i = 0; i < MAL.length; i++) {
+    if (String(MAL[i].no) === String(no)) { idx = i; return true; }
+  }
+  return false;
+}
+
+var FIND_BOX = "body";   // 본문이 들어가는 칸
+/* ===== 찾은 낱말로 이동 =====
+   검색 결과를 눌러 들어오면 그 낱말을 노랗게 칠하고 첫 자리로 옮겨 준다.
+   여러 곳에 나오면 아래 막대의 ▲▼ 로 옮겨 다닐 수 있다.
+   칠하는 것은 글자를 늘리지 않으므로, 직접 칠한 하이라이트의 위치 계산에는 영향이 없다. */
+var findQuery = null, findMarks = [], findAt = -1;
+
+function clearFind() {
+  var box = document.getElementById(FIND_BOX);
+  if (box) {
+    var ms = box.querySelectorAll("mark.find");
+    for (var i = ms.length - 1; i >= 0; i--) {
+      var m = ms[i], p = m.parentNode;
+      while (m.firstChild) p.insertBefore(m.firstChild, m);
+      p.removeChild(m);
+      p.normalize();
+    }
+  }
+  findMarks = []; findAt = -1;
+  var bar = document.getElementById("findBar");
+  if (bar) bar.style.display = "none";
+}
+
+function applyFind() {
+  clearFind();
+  if (!findQuery) return;
+  var box = document.getElementById(FIND_BOX);
+  if (!box) return;
+  var needle = findQuery.replace(/\s+/g, "");
+  if (!needle) return;
+
+  // 글자만 이어 붙이고, 각 글자가 어느 텍스트 노드의 몇 번째인지 적어 둔다
+  var walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT, null);
+  var s = "", pos = [], node, i;
+  while ((node = walker.nextNode())) {
+    var t = node.nodeValue;
+    for (i = 0; i < t.length; i++) {
+      var ch = t.charAt(i);
+      if (ch === " " || ch === "\n" || ch === "\t" || ch === "\r") continue;
+      s += ch; pos.push({ node: node, at: i });
+    }
+  }
+
+  // 찾은 자리마다, 텍스트 노드별 구간으로 쪼개 둔다
+  var groups = [], from = 0, hit;
+  while ((hit = s.indexOf(needle, from)) >= 0) {
+    var piece = [], cur = null;
+    for (var k = hit; k < hit + needle.length; k++) {
+      var p = pos[k];
+      if (cur && cur.node === p.node && p.at === cur.end) cur.end = p.at + 1;
+      else { cur = { node: p.node, start: p.at, end: p.at + 1 }; piece.push(cur); }
+    }
+    groups.push(piece);
+    from = hit + needle.length;
+  }
+  if (!groups.length) return;
+
+  // 뒤에서부터 칠해야 앞쪽 글자 위치가 밀리지 않는다
+  for (var g = groups.length - 1; g >= 0; g--) {
+    var marks = [];
+    for (var q = groups[g].length - 1; q >= 0; q--) {
+      var seg = groups[g][q];
+      var tail = seg.node.splitText(seg.start);
+      if (seg.end - seg.start < tail.nodeValue.length) tail.splitText(seg.end - seg.start);
+      var mk = document.createElement("mark");
+      mk.className = "find";
+      tail.parentNode.insertBefore(mk, tail);
+      mk.appendChild(tail);
+      marks.unshift(mk);
+    }
+    findMarks.unshift(marks);
+  }
+
+  var bar = document.getElementById("findBar");
+  if (bar) {
+    bar.style.display = "flex";
+    document.getElementById("findWord").textContent = findQuery;
+  }
+  gotoFind(0);
+}
+
+function gotoFind(n) {
+  if (!findMarks.length) return;
+  if (n < 0) n = findMarks.length - 1;
+  if (n >= findMarks.length) n = 0;
+  findAt = n;
+  for (var i = 0; i < findMarks.length; i++) {
+    for (var j = 0; j < findMarks[i].length; j++) {
+      findMarks[i][j].className = (i === n) ? "find cur" : "find";
+    }
+  }
+  var el = findMarks[n][0];
+  try { el.scrollIntoView({ behavior: "smooth", block: "center" }); }
+  catch (e) { el.scrollIntoView(); }
+  var c = document.getElementById("findCount");
+  if (c) c.textContent = (n + 1) + " / " + findMarks.length;
+}
+
+/* ===== 통합 검색 =====
+   성령사연(2026·2025) · 월명동 · 말씀을 한 번에 찾는다.
+   각 카테고리의 원본 파일을 그때그때 받아서 찾으므로, 사연을 더 넣어도 여기는 손댈 것이 없다.
+   월명동도 사진을 파일로 따로 두어 stones/stones.json 은 200KB 뿐이라,
+   그 원본을 그대로 받아 쓴다. 따로 만들어 둘 검색용 파일이 없다. */
+var SEARCH_CACHE = {};
+
+// 띄어쓰기·줄바꿈을 무시하고 찾기 위해, 공백을 뺀 문자열과 원문 위치를 함께 만든다
+function squash(t) {
+  var s = "", map = [], i, ch;
+  for (i = 0; i < t.length; i++) {
+    ch = t.charAt(i);
+    if (ch === " " || ch === "\n" || ch === "\t" || ch === "\r") continue;
+    s += ch; map.push(i);
+  }
+  return { s: s, map: map };
+}
+
+// 한 항목의 본문을 통째 글자로 만든다
+function itemText(item, kind) {
+  if (kind === "stones") {
+    var ss = item.sections || [], st = [], k;
+    if (item.meta) st.push(item.meta);
+    for (k = 0; k < ss.length; k++) { if (ss[k] && ss[k].text) st.push(ss[k].text); }
+    return st.join(" ");
+  }
+  var out = [], ps = item.paragraphs || [], i, it, lines;
+  for (i = 0; i < ps.length; i++) {
+    it = ps[i];
+    if (!it || it.hr) continue;
+    if (it.h) { out.push(it.h); continue; }
+    lines = it.p ? it.p : it;
+    if (lines && lines.join) out.push(lines.join(" "));
+  }
+  if (item.quote) out.push(item.quote);
+  return out.join("\n");
+}
+
+function itemTitle(item, kind) {
+  if (kind === "stones") return item.num + ". " + item.title;
+  return item.title || (item.no + "편");
+}
+
+function fetchSource(src, done) {
+  // 지금 페이지에 이미 올라와 있는 자료면 다시 받지 않는다
+  if (src.local) {
+    var have = src.local();
+    if (have) { done(have); return; }
+  }
+  if (SEARCH_CACHE[src.url]) { done(SEARCH_CACHE[src.url]); return; }
+  SaCrypt.json(src.url).then(function (list) {
+    SEARCH_CACHE[src.url] = list || [];
+    done(SEARCH_CACHE[src.url]);
+  }).catch(function () { done([]); });
+}
+
+function runSearch() {
+  var kw = $("q").value.replace(/^\s+|\s+$/g, "");
+  var box = $("results");
+  box.innerHTML = "";
+  if (!kw) return;
+
+  var needle = squash(kw).s;
+  if (!needle) return;
+
+  var pending = SEARCH_SOURCES.length, total = 0, blocks = [];
+  var note = document.createElement("div");
+  note.className = "empty";
+  note.textContent = "찾는 중…";
+  box.appendChild(note);
+
+  SEARCH_SOURCES.forEach(function (src, si) {
+    fetchSource(src, function (list) {
+      var hits = [];
+      for (var i = 0; i < list.length; i++) {
+        var item = list[i];
+        var text = itemText(item, src.kind);
+        var title = itemTitle(item, src.kind);
+        var sq = squash(text);
+        var at = sq.s.indexOf(needle);
+        var inTitle = squash(title).s.indexOf(needle) >= 0;
+        if (at < 0 && !inTitle) continue;
+        var snip = "";
+        if (at >= 0) {
+          var pos = sq.map[at];
+          var from = Math.max(0, pos - 22);
+          snip = (from > 0 ? "…" : "") +
+            text.substr(from, 78).replace(/\s+/g, " ") + "…";
+        }
+        hits.push({ item: item, idx: i, title: title, snip: snip });
+      }
+      blocks[si] = { src: src, hits: hits };
+      total += hits.length;
+      if (--pending === 0) paintResults(blocks, total);
+    });
+  });
+}
+
+function paintResults(blocks, total) {
+  var box = $("results");
+  box.innerHTML = "";
+  if (!total) {
+    var e = document.createElement("div");
+    e.className = "empty";
+    e.textContent = "검색 결과가 없습니다.";
+    box.appendChild(e);
+    return;
+  }
+  var sum = document.createElement("div");
+  sum.className = "searchsum";
+  sum.textContent = "모두 " + total + "곳에서 찾았습니다.";
+  box.appendChild(sum);
+
+  blocks.forEach(function (blk) {
+    if (!blk || !blk.hits.length) return;
+    var head = document.createElement("div");
+    head.className = "searchcat";
+    head.textContent = blk.src.label + " (" + blk.hits.length + ")";
+    box.appendChild(head);
+
+    blk.hits.forEach(function (h) {
+      var btn = document.createElement("button");
+      btn.className = "hit";
+      var b = document.createElement("b");
+      b.textContent = h.title;
+      btn.appendChild(b);
+      if (h.snip) {
+        var s = document.createElement("span");
+        s.className = "snip";
+        s.textContent = h.snip;
+        btn.appendChild(s);
+      }
+      btn.onclick = function () { gotoHit(blk.src, h); };
+      box.appendChild(btn);
+    });
+  });
+}
+
+/* '9월 6일 주일말씀' -> '9월 6일 (주)' */
+var DAY_MARK = { "주일": "(주)", "수요": "(수)", "금요": "(금)", "토요": "(토)", "월요": "(월)" };
+function dateLabel(s, i) {
+  var m = (s.title || "").match(/^\s*(\d+월\s*\d+일)\s*(주일|수요|금요|토요|월요)?/);
+  if (!m) return fullTitle(s, i);
+  var mark = DAY_MARK[m[2]] || "";
+  return m[1] + (mark ? " " + mark : "");
+}
+
+// 말씀 제목(부제)을 한 줄로 이어 붙인다
+function subText(s) {
+  if (!s.subtitle) return "";
+  var subs = (typeof s.subtitle === "string") ? [s.subtitle] : s.subtitle;
+  return subs.join("  ");
+}
+
+function buildList() {
+  var box = $("listresults");
+  box.innerHTML = "";
+  for (var i = 0; i < MAL.length; i++) {
+    (function (at) {
+      var s = MAL[at];
+      var row = document.createElement("div");
+      row.className = "mrow";
+
+      var btn = document.createElement("button");
+      btn.className = "hit";
+      var d = document.createElement("span");
+      d.className = "date";
+      d.textContent = dateLabel(s, at);
+      var t = document.createElement("span");
+      t.className = "mtitle";
+      t.textContent = subText(s);
+      btn.appendChild(d);
+      btn.appendChild(t);   // 이어 붙여 한 덩어리 글로 흐르게 한다
+      btn.onclick = function () { idx = at; closeAll(); render(); };
+
+      row.appendChild(btn);
+      box.appendChild(row);
+    })(i);
+  }
+}
+
+function openModal(id) { $(id).className = "modal open"; }
+function closeAll() {
+  $("search").className = "modal";
+  $("listmodal").className = "modal";
+}
+
+/* ===== 하이라이트 이벤트 ===== */
+$("body").addEventListener("click", function (e) {
+  var markEl = e.target.closest && e.target.closest("mark.hl");
+  if (markEl) removeHighlightAt(markEl);
+});
+$("hlToolbar").addEventListener("click", function (e) {
+  var b = e.target.closest && e.target.closest(".hl-swatch");
+  if (b) applyPendingHighlight(b.getAttribute("data-c"));
+});
+document.addEventListener("mouseup", function (e) {
+  if (e.target.closest && e.target.closest("#hlToolbar")) return;
+  evaluateSelection();
+});
+var hlSelectionDebounce = null;
+document.addEventListener("selectionchange", function () {
+  clearTimeout(hlSelectionDebounce);
+  hlSelectionDebounce = setTimeout(evaluateSelection, 250);
+});
+
+/* ===== 이벤트 ===== */
+$("prev").onclick = function () { go(-1); };
+$("next").onclick = function () { go(1); };
+$("speak").onclick = function () { if (speaking) { stopSpeak(); } else { startSpeak(); } };
+$("readCountBtn").onclick = function () {
+  var s = MAL[idx];
+  var epNum = numOf(s, idx);
+  var n = bumpReadCount(epNum);
+  SayeonAnalytics.trackRead("malsseum", epNum, fullTitle(s, idx), "2026");
+  $("readCountBtn").textContent = n + "독";
+  $("readCountBtn").classList.add("done");
+  $("readCountMinus").disabled = false;
+};
+$("readCountMinus").onclick = function () {
+  var s = MAL[idx];
+  if (!s) return;
+  var n = lowerReadCount(numOf(s, idx));
+  $("readCountBtn").textContent = n > 0 ? n + "독" : "다 읽음";
+  $("readCountBtn").classList.toggle("done", n > 0);
+  $("readCountMinus").disabled = n === 0;
+};
+
+$("opensettings").onclick = SaSettings.open;
+$("opensearch").onclick = function () { openModal("search"); $("q").focus(); };
+$("closeq").onclick = closeAll;
+$("q").oninput = runSearch;
+
+$("openlist").onclick = function () { openModal("listmodal"); };
+$("navlist").onclick = function () { openModal("listmodal"); };
+$("closelist").onclick = closeAll;
+
+$("findPrev").onclick = function () { gotoFind(findAt - 1); };
+$("findNext").onclick = function () { gotoFind(findAt + 1); };
+$("findClose").onclick = function () { findQuery = null; clearFind(); };
+// 찾던 낱말 그대로 검색 결과를 다시 펼친다
+$("findBack").onclick = function () {
+  var kw = findQuery;
+  openModal("search");
+  $("q").value = kw || "";
+  runSearch();
+  $("q").focus();
+};
+
+
+
+document.onkeydown = function (e) {
+  if (e.keyCode === 37) go(-1);
+  if (e.keyCode === 39) go(1);
+  if (e.keyCode === 27) { closeAll(); hideHlToolbar(); }
+};
+
+/* ===== 스와이프로 이전/다음 이동 ===== */
+(function () {
+  var startX = 0, startY = 0, tracking = false;
+  var THRESHOLD = 60;
+
+  function anyModalOpen() {
+    return SaSettings.isOpen() ||
+      $("search").className.indexOf("open") >= 0 ||
+      $("listmodal").className.indexOf("open") >= 0;
+  }
+
+  $("wrap").addEventListener("touchstart", function (e) {
+    if (anyModalOpen() || !e.touches.length) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+  }, { passive: true });
+
+  $("wrap").addEventListener("touchend", function (e) {
+    if (!tracking || !e.changedTouches.length) return;
+    tracking = false;
+    var sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return; // 텍스트를 드래그해서 고르는 중이면 페이지 넘김을 막는다
+    var dx = e.changedTouches[0].clientX - startX;
+    var dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    if (dx < 0) { go(1); } else { go(-1); }
+  }, { passive: true });
+})();
+
+window.onbeforeunload = stopSpeak;
+
+function showLoadError(msg) {
+  $("total").textContent = "";
+  $("ctitle").textContent = "불러오지 못했습니다";
+  var body = $("body");
+  body.innerHTML = "";
+  var d = document.createElement("div");
+  d.className = "empty";
+  var lines = [
+    "말씀 파일(malsseum.json)을 읽지 못했습니다.",
+    msg,
+    "index.html 과 malsseum.json 이 같은 폴더에 있어야 하고,",
+    "웹 주소(http/https)로 열어야 동작합니다."
+  ];
+  for (var i = 0; i < lines.length; i++) {
+    if (i > 0) d.appendChild(document.createElement("br"));
+    d.appendChild(document.createTextNode(lines[i]));
+  }
+  body.appendChild(d);
+  $("prev").disabled = true;
+  $("next").disabled = true;
+  $("speak").disabled = true;
+  $("readCountMinus").disabled = true;
+  $("readCountBtn").disabled = true;
+  $("openlist").disabled = true;
+  $("navlist").disabled = true;
+  $("opensearch").disabled = true;
+}
+
+function loadData() {
+  $("total").textContent = "불러오는 중…";
+  SaCrypt.json(DATA_URL).then(function (list) {
+    MAL = list || [];
+    if (!MAL.length) { showLoadError("(내용이 비어 있음)"); return; }
+    idx = MAL.length - 1;
+    jumpToHashItem();
+    buildList();
+    render();
+  }).catch(function () { showLoadError("(읽지 못했습니다)"); });
+}
+
+
+/* ===== 홈 화면에 추가 =====
+   안드로이드 크롬은 설치할 수 있을 때 beforeinstallprompt 를 보내 준다.
+   그때만 상단에 단추를 띄우고, 설치했거나 한 번 닫으면 다시 띄우지 않는다.
+   (아이폰은 이 신호가 없어서 install.html 안내로 대신한다) */
+(function () {
+  var deferred = null;
+  var btn = document.getElementById("installBtn");
+  if (!btn) return;
+
+  function hidden() {
+    try {
+      return localStorage.getItem("installHidden") === "1" ||
+        localStorage.getItem("sayeon_app_installed") === "1";
+    } catch (e) { return false; }
+  }
+  function rememberInstalled() {
+    try {
+      localStorage.setItem("installHidden", "1");
+      localStorage.setItem("sayeon_app_installed", "1");
+    } catch (e) {}
+  }
+  function runningAsApp() {
+    var modes = ["standalone", "fullscreen", "minimal-ui", "window-controls-overlay"];
+    if (window.matchMedia) {
+      for (var i = 0; i < modes.length; i++) {
+        if (window.matchMedia("(display-mode: " + modes[i] + ")").matches) return true;
+      }
+    }
+    return window.navigator.standalone === true ||
+      document.referrer.indexOf("android-app://") === 0;
+  }
+
+  if (runningAsApp()) rememberInstalled();
+  if (runningAsApp() || hidden()) {
+    btn.style.display = "none";
+    return;
+  }
+
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferred = e;
+    if (!hidden()) btn.style.display = "inline-flex";
+  });
+
+  btn.onclick = function () {
+    if (!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.then(function () {
+      deferred = null;
+      btn.style.display = "none";
+      rememberInstalled();
+    });
+  };
+
+  window.addEventListener("appinstalled", function () {
+    btn.style.display = "none";
+    rememberInstalled();
+  });
+})();
+
+/* ===== 잠금화면 ===== */
+function enter() {
+  $("lock").className = "lock hidden";
+  loadData();
+}
+
+function tryUnlock() {
+  var pw = $("pw").value;
+  $("pwok").disabled = true;
+  SaCrypt.unlock(pw).then(function (ok) {
+    $("pwok").disabled = false;
+    if (ok) { enter(); return; }
+    $("pwwarn").style.display = "block";
+    $("pw").value = "";
+    $("pw").focus();
+  });
+}
+$("pwok").onclick = tryUnlock;
+$("pw").onkeydown = function (e) { if (e.keyCode === 13) tryUnlock(); };
+
+loadSync();
+SaSettings.onChange(function (c) { cfg = c; applyCfg(); });
+SaSettings.init({ unit: '편' });
+
+// 한 번 넣은 기기에서는 다시 묻지 않는다
+SaCrypt.resume().then(function (ok) {
+  if (ok) enter(); else $("pw").focus();
+});
+</script>
+</body>
+</html>

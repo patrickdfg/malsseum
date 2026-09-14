@@ -1,0 +1,78 @@
+name: 큰 음성 파일 조립
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.upload/manifest.json'
+      - '.upload/*.part'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: assemble-upload-main
+  cancel-in-progress: false
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 음성 파일 조립 및 검사
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          m = json.load(open('.upload/manifest.json', encoding='utf-8'))
+          os.makedirs(os.path.dirname(m['target']), exist_ok=True)
+          digest = hashlib.sha256()
+          with open(m['target'], 'wb') as out:
+              for part in m['parts']:
+                  data = open(part, 'rb').read()
+                  out.write(data)
+                  digest.update(data)
+          if digest.hexdigest() != m['sha256']:
+              raise SystemExit('조립 파일 SHA-256 불일치')
+          print(m['target'], os.path.getsize(m['target']), digest.hexdigest())
+          PY
+
+      - name: 큰 음성은 줄이기
+        run: |
+          # 조립한 음성이 크면 말소리에 맞게 48kbps 모노로 다시 뽑아 줄인다.
+          # 25MB 아래는 그대로 둔다. (깃허브 한 파일 최대는 100MB)
+          LIMIT=$((25 * 1024 * 1024))
+          target=$(python -c "import json;print(json.load(open('.upload/manifest.json'))['target'])")
+          bytes=$(stat -c %s "$target")
+          if [ "$bytes" -le "$LIMIT" ]; then
+            echo "$target: $(( bytes/1024/1024 ))MB — 줄이지 않음"
+            exit 0
+          fi
+          echo "$target: $(( bytes/1024/1024 ))MB — 48kbps 모노로 줄인다"
+          ffmpeg -y -loglevel error -i "$target" -vn -ac 1 -ar 44100 -b:a 48k "$target.small.mp3"
+          small=$(stat -c %s "$target.small.mp3")
+          # 줄인 게 오히려 더 크면(이미 작은 파일) 원본을 둔다
+          if [ "$small" -lt "$bytes" ]; then
+            mv "$target.small.mp3" "$target"
+            echo "  -> $(( small/1024/1024 ))MB"
+          else
+            rm -f "$target.small.mp3"
+            echo "  원본이 더 작아 그대로 둔다"
+          fi
+
+      - name: 결과 저장
+        run: |
+          git config user.name "sayeon-publisher[bot]"
+          git config user.email "sayeon-publisher[bot]@users.noreply.github.com"
+          target=$(python -c "import json;print(json.load(open('.upload/manifest.json'))['target'])")
+          # 줄인 뒤에도 100MB 를 넘으면 올리지 않고 멈춘다 (깃허브 한계)
+          test "$(stat -c %s "$target")" -le $((99 * 1024 * 1024)) || \
+            { echo '::error::줄인 뒤에도 100MB 를 넘습니다'; exit 1; }
+          git add "$target"
+          git rm -r .upload
+          git commit -m "큰 음성 파일 조립"
+          git pull --rebase origin main
+          git push origin main

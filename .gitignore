@@ -1,0 +1,3 @@
+# 잠그기 전 원고는 올리지 않는다 (.enc 만 올린다)
+/malsseum.json
+__pycache__/
