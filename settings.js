@@ -31,8 +31,9 @@
   ];
   var MODES = ['prev', 'next', 'off', 'repeat'];
 
+  // voice: 기기가 읽어 줄 때 쓸 목소리의 voiceURI. 빈 값이면 '기기가 고름'(구글 것 먼저).
   var DEF = { size: 16, lh: 1.95, pad: 18, font: 0,
-              bg: '#1b2018', text: '#e9ece4', autoMode: 'prev', rate: 0.90 };
+              bg: '#1b2018', text: '#e9ece4', autoMode: 'prev', rate: 0.90, voice: '' };
   var RANGE = { size: [12, 30], lh: [1.2, 2.6], pad: [0, 60], rate: [0.5, 2.0] };
   var STEP = { size: 1, lh: 0.05, pad: 2, rate: 0.05 };
 
@@ -56,6 +57,7 @@
     if (typeof s.bg === 'string') c.bg = s.bg;
     if (typeof s.text === 'string') c.text = s.text;
     if (typeof s.rate === 'number') c.rate = clamp('rate', s.rate);
+    if (typeof s.voice === 'string') c.voice = s.voice;
     for (i = 0; i < MODES.length; i++) {
       if (s.autoMode === MODES[i]) c.autoMode = s.autoMode;
     }
@@ -95,6 +97,113 @@
     patch[name] = (name === 'lh' || name === 'rate')
       ? Math.round(v * 100) / 100 : Math.round(v);
     set(patch);
+  }
+
+  /* ===== 읽어 주는 목소리 =====
+   * 녹음이 없는 편(2025 성령사연, 월명동)은 기기가 그 자리에서 읽어 준다.
+   * 기기에 깔린 한국어 목소리를 그대로 보여 주고, 고른 것을 세 페이지가 같이 쓴다.
+   * 몇 개가 뜨는지는 기기마다 다르다 — 브라우저가 시스템 TTS 에서 받아 오는 것을
+   * 그대로 내놓을 뿐이라, 우리가 늘릴 수 있는 것이 아니다.
+   * 목록은 브라우저가 늦게 채우기도 하므로 voiceschanged 때 다시 그린다. */
+  // 'kok'(코카니어) 처럼 ko 로 시작만 하는 다른 언어가 섞이지 않게 정확히 걸러낸다
+  function isKoreanVoice(v) {
+    if (!v || !v.lang) return false;
+    var l = v.lang.toLowerCase().replace('_', '-');
+    return l === 'ko' || l.indexOf('ko-') === 0;
+  }
+  function koVoices() {
+    if (!global.speechSynthesis || !global.speechSynthesis.getVoices) return [];
+    var vs;
+    try { vs = global.speechSynthesis.getVoices() || []; } catch (e) { return []; }
+    return vs.filter(isKoreanVoice);
+  }
+  function isGoogleVoice(v) {
+    return /google|구글/i.test(v.name || '') || /^ko-kr-x-/i.test(v.voiceURI || '');
+  }
+  function voiceId(v) { return (v && (v.voiceURI || v.name)) || ''; }
+  // 고른 것이 그 기기에 없으면(다른 폰에서 고른 값) 자동으로 되돌아간다
+  function pickVoice() {
+    var vs = koVoices(), i;
+    if (!vs.length) return null;
+    if (cfg && cfg.voice) {
+      for (i = 0; i < vs.length; i++) { if (voiceId(vs[i]) === cfg.voice) return vs[i]; }
+    }
+    for (i = 0; i < vs.length; i++) { if (isGoogleVoice(vs[i])) return vs[i]; }
+    return vs[0];
+  }
+  // 같은 이름이 두 번 나오는 기기가 많다. 구글 한국어 목소리가 기기 내장용과
+  // 네트워크용으로 갈라져 있기 때문이다(문피아가 '(시스템)' 을 붙여 가른 것과 같다).
+  // localService 로 먼저 가르고, 그래도 겹치면 뒤에 번호를 붙인다.
+  function voiceLabels(vs) {
+    var out = [], seen = {}, i, base;
+    for (i = 0; i < vs.length; i++) {
+      base = vs[i].name || vs[i].voiceURI || '이름 없는 목소리';
+      if (vs[i].localService === false) base += ' (네트워크)';
+      out.push(base);
+    }
+    for (i = 0; i < out.length; i++) { seen[out[i]] = (seen[out[i]] || 0) + 1; }
+    var used = {};
+    for (i = 0; i < out.length; i++) {
+      if (seen[out[i]] > 1) {
+        used[out[i]] = (used[out[i]] || 0) + 1;
+        out[i] = out[i] + ' ' + used[out[i]];
+      }
+    }
+    return out;
+  }
+  // 고르면 그 자리에서 한 마디 들려 준다. 이름만으로는 어느 목소리인지 모른다.
+  function sampleVoice() {
+    if (!global.speechSynthesis) return;
+    try {
+      global.speechSynthesis.cancel();
+      var u = new global.SpeechSynthesisUtterance('이 목소리로 읽어 드립니다.');
+      u.lang = 'ko-KR';
+      var v = pickVoice();
+      if (v) u.voice = v;
+      u.rate = cfg.rate;
+      global.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  function stopSample() {
+    try { if (global.speechSynthesis) global.speechSynthesis.cancel(); } catch (e) {}
+  }
+  function paintVoices() {
+    if (!el.voice) return;
+    var box = el.voice.row, vs = koVoices(), i;
+    while (box.firstChild) { box.removeChild(box.firstChild); }
+    if (!global.speechSynthesis) {
+      el.voice.note.textContent = '이 브라우저는 기기 읽어주기를 못 합니다.';
+      return;
+    }
+    if (!vs.length) {
+      el.voice.note.textContent =
+        '이 기기에서 한국어 목소리를 찾지 못했습니다. 폰 설정 → 음성 합성(TTS)에서 한국어를 받아 주세요.';
+      return;
+    }
+    var labels = ['기기가 고름'], ids = [''], names = voiceLabels(vs);
+    for (i = 0; i < vs.length; i++) { labels.push(names[i]); ids.push(voiceId(vs[i])); }
+    var sel = 0;
+    for (i = 1; i < ids.length; i++) { if (ids[i] === cfg.voice) sel = i; }
+    if (cfg.voice && sel === 0) {
+      // 다른 기기에서 고른 목소리가 여기엔 없다
+      el.voice.note.textContent = '고른 목소리가 이 기기에 없어 기기가 고른 것으로 읽습니다. (' +
+        vs.length + '개)';
+    } else {
+      el.voice.note.textContent = '이 기기에 한국어 목소리 ' + vs.length + '개. ' +
+        '누르면 그 목소리로 한 마디 들려 줍니다.';
+    }
+    var bs = [];
+    for (i = 0; i < labels.length; i++) {
+      (function (at) {
+        var b = mk('button', 'sa-opt', labels[at]);
+        b.type = 'button';
+        b.onclick = function () { set({ voice: ids[at] }); sampleVoice(); };
+        box.appendChild(b);
+        bs.push(b);
+      })(i);
+    }
+    el.voice.bs = bs;
+    markSel(el.voice, sel);
   }
 
   /* ===== 색 셈 ===== */
@@ -429,6 +538,16 @@
     s.appendChild(el.rate.box);
     inner.appendChild(s);
 
+    // 기기가 읽어 주는 편에만 쓰인다 (녹음이 있는 편은 그 파일을 튼다)
+    s = section('읽어 주는 목소리');
+    el.voice = { row: mk('div', 'sa-opts'), bs: [], note: mk('div', 'sa-note') };
+    s.appendChild(el.voice.row);
+    s.appendChild(el.voice.note);
+    inner.appendChild(s);
+    if (global.speechSynthesis && 'onvoiceschanged' in global.speechSynthesis) {
+      global.speechSynthesis.onvoiceschanged = function () { paintVoices(); };
+    }
+
     s = section('좌우 여백');
     el.pad = stepper('pad', function (v) { return v + 'px'; });
     s.appendChild(el.pad.box);
@@ -512,6 +631,7 @@
     el.bgColor.hex.textContent = cfg.bg;
     paintSkin();
     paintPush();
+    paintVoices();
   }
 
   function open() {
@@ -523,6 +643,7 @@
   }
   function close() {
     if (!el.wrap) return;
+    stopSample();      // 미리 듣던 한 마디가 설정을 닫은 뒤에도 이어지지 않게
     el.back.className = 'sa-back';
     el.wrap.className = 'sa-wrap';
   }
@@ -543,6 +664,8 @@
   global.SaSettings = {
     init: init, get: get, set: set, onChange: onChange,
     open: open, close: close, isOpen: isOpen, askPush: askPush,
+    // 세 페이지가 같은 목소리를 쓰도록 고르는 일은 여기 한 곳에서만 한다
+    voices: koVoices, pickVoice: pickVoice,
     fonts: FONTS, themes: THEMES, mix: mix, isLight: isLight
   };
 })(window);

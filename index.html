@@ -854,30 +854,10 @@ var queue = [], qi = 0, speaking = false;
 if (!synth) { $("speak").disabled = true; $("warn").style.display = "block"; }
 
 /* ===== 목소리 =====
-   녹음이 아직 없는 편만 기기가 그 자리에서 읽어 준다.
-   기기에 있는 한국어 목소리 중 구글 것을 먼저 쓴다(고르는 화면은 없앴다). */
-
-// 'kok'(코카니어) 처럼 ko 로 시작만 하는 다른 언어가 섞이지 않게 정확히 걸러낸다
-function isKorean(v) {
-  if (!v || !v.lang) return false;
-  var l = v.lang.toLowerCase().replace("_", "-");
-  return l === "ko" || l.indexOf("ko-") === 0;
-}
-
-function koVoices() {
-  if (!synth || !synth.getVoices) return [];
-  return synth.getVoices().filter(isKorean);
-}
-
-function isGoogle(v) { return /google|구글/i.test(v.name) || /^ko-kr-x-/i.test(v.voiceURI || ""); }
-
-function voiceId(v) { return v.voiceURI || v.name; }
-
+   녹음이 아직 없는 편만 기기가 그 자리에서 읽어 준다(지금 말씀은 69편 모두 음성이 있다).
+   어느 목소리로 읽을지는 설정에서 고른다 — 고르는 일은 settings.js 한 곳에서만 한다. */
 function pickVoice() {
-  var vs = koVoices(), i;
-  if (!vs.length) return null;
-  for (i = 0; i < vs.length; i++) { if (isGoogle(vs[i])) return vs[i]; }
-  return vs[0];
+  return (window.SaSettings && SaSettings.pickVoice) ? SaSettings.pickVoice() : null;
 }
 
 /* ===== 듣는 동안 화면이 꺼지지 않게 =====
