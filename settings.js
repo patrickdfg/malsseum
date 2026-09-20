@@ -167,43 +167,57 @@
   function stopSample() {
     try { if (global.speechSynthesis) global.speechSynthesis.cancel(); } catch (e) {}
   }
+  function voiceListOpen(on) {
+    if (!el.voice) return;
+    el.voice.open = on;
+    el.voice.list.className = on ? 'sa-list on' : 'sa-list';
+    el.voice.bar.querySelector('.sa-bar-a').textContent = on ? '▲ 닫기' : '▼ 고르기';
+    if (!on) stopSample();
+  }
   function paintVoices() {
     if (!el.voice) return;
-    var box = el.voice.row, vs = koVoices(), i;
-    while (box.firstChild) { box.removeChild(box.firstChild); }
+    var list = el.voice.list, vs = koVoices(), i;
+    while (list.firstChild) { list.removeChild(list.firstChild); }
     if (!global.speechSynthesis) {
+      el.voice.bar.style.display = 'none';
       el.voice.note.textContent = '이 브라우저는 기기 읽어주기를 못 합니다.';
       return;
     }
     if (!vs.length) {
+      el.voice.bar.style.display = 'none';
       el.voice.note.textContent =
         '이 기기에서 한국어 목소리를 찾지 못했습니다. 폰 설정 → 음성 합성(TTS)에서 한국어를 받아 주세요.';
       return;
     }
+    el.voice.bar.style.display = '';
     var labels = ['기기가 고름'], ids = [''], names = voiceLabels(vs);
     for (i = 0; i < vs.length; i++) { labels.push(names[i]); ids.push(voiceId(vs[i])); }
     var sel = 0;
     for (i = 1; i < ids.length; i++) { if (ids[i] === cfg.voice) sel = i; }
     if (cfg.voice && sel === 0) {
       // 다른 기기에서 고른 목소리가 여기엔 없다
-      el.voice.note.textContent = '고른 목소리가 이 기기에 없어 기기가 고른 것으로 읽습니다. (' +
-        vs.length + '개)';
+      el.voice.note.textContent = '고른 목소리가 이 기기에 없어 기기가 고른 것으로 읽습니다. ' +
+        '이 기기에는 한국어 목소리가 ' + vs.length + '개 있습니다.';
     } else {
       el.voice.note.textContent = '이 기기에 한국어 목소리 ' + vs.length + '개. ' +
-        '누르면 그 목소리로 한 마디 들려 줍니다.';
+        '고르면 그 목소리로 한 마디 들려 줍니다.';
     }
-    var bs = [];
+    el.voice.bar.querySelector('.sa-bar-v').textContent = labels[sel];
     for (i = 0; i < labels.length; i++) {
       (function (at) {
-        var b = mk('button', 'sa-opt', labels[at]);
+        var b = mk('button', at === sel ? 'sa-item sel' : 'sa-item');
         b.type = 'button';
-        b.onclick = function () { set({ voice: ids[at] }); sampleVoice(); };
-        box.appendChild(b);
-        bs.push(b);
+        b.appendChild(mk('span', 'sa-item-t', labels[at]));
+        b.appendChild(mk('span', 'sa-bar-a', at === sel ? '✓' : ''));
+        b.onclick = function () {
+          set({ voice: ids[at] });     // set 이 paintVoices 를 다시 부른다
+          voiceListOpen(false);
+          sampleVoice();
+        };
+        list.appendChild(b);
       })(i);
     }
-    el.voice.bs = bs;
-    markSel(el.voice, sel);
+    voiceListOpen(!!el.voice.open);
   }
 
   /* ===== 색 셈 ===== */
@@ -258,6 +272,24 @@
     'border-radius:8px;padding:4px;cursor:pointer}' +
     '.sa-hex{font-size:15px;opacity:.7}' +
     '.sa-note{font-size:14px;opacity:.75;margin-top:8px}' +
+    /* 목소리는 수가 많아 낱개 단추로 늘어놓으면 화면을 다 먹는다.
+       평소엔 고른 것만 막대로 보이고, 누르면 목록이 펼쳐진다. */
+    '.sa-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;' +
+    'width:100%;background:var(--sa-panel);color:var(--sa-text);border:0;border-radius:10px;' +
+    'padding:12px 14px;font-size:16px;font-family:inherit;cursor:pointer;min-height:48px;' +
+    'text-align:left}' +
+    '.sa-bar-v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.sa-bar-a{flex:0 0 auto;opacity:.7;font-size:13px}' +
+    '.sa-list{display:none;margin-top:8px;border-radius:10px;overflow:hidden;' +
+    'border:1px solid var(--sa-panel);max-height:320px;overflow-y:auto}' +
+    '.sa-list.on{display:block}' +
+    '.sa-item{display:flex;align-items:center;justify-content:space-between;gap:10px;' +
+    'width:100%;background:transparent;color:var(--sa-text);border:0;' +
+    'border-bottom:1px solid var(--sa-panel);padding:12px 14px;font-size:16px;' +
+    'font-family:inherit;cursor:pointer;min-height:48px;text-align:left}' +
+    '.sa-item:last-child{border-bottom:0}' +
+    '.sa-item.sel{background:var(--sa-accent);color:var(--sa-on-accent);font-weight:700}' +
+    '.sa-item-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.sa-ask{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));' +
     'z-index:9997;max-width:520px;margin:0 auto;border-radius:14px;padding:16px;' +
     'background:var(--sa-bg);color:var(--sa-text);font-family:var(--sa-font);line-height:1.5;' +
@@ -540,8 +572,14 @@
 
     // 기기가 읽어 주는 편에만 쓰인다 (녹음이 있는 편은 그 파일을 튼다)
     s = section('읽어 주는 목소리');
-    el.voice = { row: mk('div', 'sa-opts'), bs: [], note: mk('div', 'sa-note') };
-    s.appendChild(el.voice.row);
+    var vbar = mk('button', 'sa-bar');
+    vbar.type = 'button';
+    vbar.appendChild(mk('span', 'sa-bar-v', '기기가 고름'));
+    vbar.appendChild(mk('span', 'sa-bar-a', '▼ 고르기'));
+    el.voice = { bar: vbar, list: mk('div', 'sa-list'), note: mk('div', 'sa-note'), open: false };
+    vbar.onclick = function () { voiceListOpen(!el.voice.open); };
+    s.appendChild(vbar);
+    s.appendChild(el.voice.list);
     s.appendChild(el.voice.note);
     inner.appendChild(s);
     if (global.speechSynthesis && 'onvoiceschanged' in global.speechSynthesis) {
@@ -644,6 +682,7 @@
   function close() {
     if (!el.wrap) return;
     stopSample();      // 미리 듣던 한 마디가 설정을 닫은 뒤에도 이어지지 않게
+    if (el.voice) el.voice.open = false;   // 다음에 열 때는 막대만 보이게
     el.back.className = 'sa-back';
     el.wrap.className = 'sa-wrap';
   }
