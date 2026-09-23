@@ -17,7 +17,7 @@
 <script src="analytics-config.js"></script>
 <script src="analytics.js"></script>
 <script src="crypt.js"></script>
-<script src="settings.js?v=3"></script>
+<script src="settings.js?v=4"></script>
 <script>
 /* 화면이 그려지기 전에 상태바 색을 정한다.
    브라우저가 이 색을 보고 상태바 글자(시계·배터리) 색을 정하기 때문에,
@@ -861,8 +861,15 @@ function audioFor(s) {
   if (!s) return null;
   var human = s.audio || null;
   var tts = (typeof s.tts === 'string') ? s.tts : null;
-  var first = (cfg && cfg.audioFirst === 'tts') ? tts : human;
-  return first || human || tts;
+  var first = cfg && cfg.audioFirst;
+  // 기기 목소리를 골랐어도 그 기기에 한국어 목소리가 없으면 파일로 되돌아간다
+  if (first === 'device') {
+    var can = window.SaSettings && SaSettings.pickVoice && SaSettings.pickVoice();
+    if (can) return null;
+    return human || tts;
+  }
+  if (first === 'tts') return tts || human;
+  return human || tts;
 }
 function isHumanAudio(s) { return !!(s && s.audio && audioFor(s) === s.audio); }
 

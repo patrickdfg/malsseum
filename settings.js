@@ -30,10 +30,10 @@
     { k: '흰색', bg: '#ffffff', text: '#1a1a1a' }
   ];
   var MODES = ['prev', 'next', 'off', 'repeat'];
-  var AUDIO_FIRST = ['human', 'tts'];
+  var AUDIO_FIRST = ['human', 'tts', 'device'];
 
   // voice: 기기가 읽어 줄 때 쓸 목소리의 voiceURI. 빈 값이면 '기기가 고름'(구글 것 먼저).
-  // audioFirst: 한 편에 올린 음성(육성)과 현수 음성이 둘 다 있을 때 먼저 틀 쪽
+  // audioFirst: 먼저 들을 음성 — 녹음(human) / 현수(tts) / 기기 목소리(device)
   var DEF = { size: 16, lh: 1.95, pad: 18, font: 0,
               bg: '#1b2018', text: '#e9ece4', autoMode: 'prev', rate: 0.90, voice: '',
               audioFirst: 'human' };
@@ -61,7 +61,9 @@
     if (typeof s.text === 'string') c.text = s.text;
     if (typeof s.rate === 'number') c.rate = clamp('rate', s.rate);
     if (typeof s.voice === 'string') c.voice = s.voice;
-    if (s.audioFirst === 'human' || s.audioFirst === 'tts') c.audioFirst = s.audioFirst;
+    for (i = 0; i < AUDIO_FIRST.length; i++) {
+      if (s.audioFirst === AUDIO_FIRST[i]) c.audioFirst = s.audioFirst;
+    }
     for (i = 0; i < MODES.length; i++) {
       if (s.autoMode === MODES[i]) c.autoMode = s.autoMode;
     }
@@ -569,14 +571,15 @@
     s.appendChild(el.lh.box);
     inner.appendChild(s);
 
-    // 올린 음성과 현수 음성이 둘 다 있는 편에만 쓰인다. 하나뿐이면 있는 것을 튼다.
+    // 세 가지 중 먼저 들을 것을 고른다. 고른 것이 그 편에 없으면 남은 것으로 넘어간다.
     s = section('먼저 들을 음성');
-    el.audioFirst = optRow(['올린 음성 🎙️', '현수 목소리 🤖'], function (at) {
+    el.audioFirst = optRow(['녹음 🎙️', '현수 목소리 🤖', '기기 목소리 📱'], function (at) {
       set({ audioFirst: AUDIO_FIRST[at] });
     });
     s.appendChild(el.audioFirst.row);
     s.appendChild(mk('div', 'sa-note',
-      '둘 다 있는 편에서 어느 쪽을 먼저 틀지 고릅니다. 한쪽만 있으면 그것을 틉니다.'));
+      '고른 것이 그 편에 없으면 녹음 → 현수 → 기기 차례로 넘어갑니다. ' +
+      '기기 목소리는 폰에 깔린 것을 그 자리에서 읽는 것이라 문단을 짚어 주지 못합니다.'));
     inner.appendChild(s);
 
     s = section('읽기 속도');
@@ -671,7 +674,11 @@
   function paint() {
     if (!el.wrap) return;
     markSel(el.mode, modeIndex());
-    markSel(el.audioFirst, cfg.audioFirst === 'tts' ? 1 : 0);
+    var afi = 0;
+    for (var ai = 0; ai < AUDIO_FIRST.length; ai++) {
+      if (AUDIO_FIRST[ai] === cfg.audioFirst) afi = ai;
+    }
+    markSel(el.audioFirst, afi);
     markSel(el.font, cfg.font);
     markSel(el.theme, themeIndex());
     paintStep(el.size, 'size');
