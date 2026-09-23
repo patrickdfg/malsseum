@@ -17,7 +17,7 @@
 <script src="analytics-config.js"></script>
 <script src="analytics.js"></script>
 <script src="crypt.js"></script>
-<script src="settings.js?v=2"></script>
+<script src="settings.js?v=3"></script>
 <script>
 /* 화면이 그려지기 전에 상태바 색을 정한다.
    브라우저가 이 색을 보고 상태바 글자(시계·배터리) 색을 정하기 때문에,
@@ -853,6 +853,19 @@ var queue = [], qi = 0, speaking = false;
 
 if (!synth) { $("speak").disabled = true; $("warn").style.display = "block"; }
 
+/* ===== 어느 음성을 틀까 =====
+   성령사연과 같은 규칙을 쓴다. `audio` 는 올린 음성, `tts` 는 현수 음성이고
+   설정의 '먼저 들을 음성' 이 어느 쪽을 먼저 볼지 정한다.
+   말씀은 아직 편마다 하나뿐이라 실제로는 있는 것을 튼다. */
+function audioFor(s) {
+  if (!s) return null;
+  var human = s.audio || null;
+  var tts = (typeof s.tts === 'string') ? s.tts : null;
+  var first = (cfg && cfg.audioFirst === 'tts') ? tts : human;
+  return first || human || tts;
+}
+function isHumanAudio(s) { return !!(s && s.audio && audioFor(s) === s.audio); }
+
 /* ===== 목소리 =====
    녹음이 아직 없는 편만 기기가 그 자리에서 읽어 준다(지금 말씀은 69편 모두 음성이 있다).
    어느 목소리로 읽을지는 설정에서 고른다 — 고르는 일은 settings.js 한 곳에서만 한다. */
@@ -927,7 +940,7 @@ seekRange.addEventListener("change", function () {
   seekDragging = false;
   var frac = Number(seekRange.value) / 1000;
   var s = MAL[idx];
-  if (s && s.audio) {
+  if (s && audioFor(s)) {
     var d = player.duration;
     if (isFinite(d) && d > 0) player.currentTime = frac * d;
   } else if (queue.length) {
@@ -961,7 +974,7 @@ function updateMediaSession(playing) {
 
 function updateSpeakBtn() {
   var s = MAL[idx];
-  var human = !!(s && s.audio && !s.tts);   // 컴퓨터 목소리는 육성이 아니다
+  var human = isHumanAudio(s);   // 컴퓨터 목소리(현수)는 육성이 아니다
   var btn = $("speak");
   btn.className = "speakbtn" + (human ? " human" : "") + (speaking ? " on" : "");
   btn.textContent = speaking ? "■ 정지" : ((human ? "🎙️" : "🤖") + " 듣기");
@@ -1008,12 +1021,18 @@ function startSyncFollow(s) {
   syncPi = -1;
 }
 
-// 말씀 번호는 과거 자료와 겹칠 수 있으므로 음성 파일명(예: 0913)을
-// 우선 키로 쓴다. 예전 시간표는 기존 말씀 번호도 계속 지원한다.
+// 열쇠가 세 가지로 섞여 있다. 파일 이름 그대로(0920.mp3), 확장자 뺀 것(0913),
+// 그리고 예전 말씀 번호(34). 위에서부터 차례로 찾는다.
+// 한 편에 음성이 둘이면 확장자까지 있어야 가려지므로 그것을 먼저 본다.
 function syncFor(s, i) {
   if (!SYNC || !s) return null;
-  var m = s.audio && s.audio.match(/(?:^|\/)(\d+)\.[^.]+$/);
-  if (m && SYNC[m[1]]) return SYNC[m[1]];
+  var f = audioFor(s);
+  var m = f && f.match(/(?:^|\/)([^\/]+)$/);
+  if (m) {
+    if (SYNC[m[1]]) return SYNC[m[1]];
+    var stem = m[1].replace(/\.[^.]+$/, '');
+    if (SYNC[stem]) return SYNC[stem];
+  }
   return SYNC[String(numOf(s, i))] || null;
 }
 
@@ -1064,7 +1083,7 @@ function playAudioNow(s) {
   var silentAnchor = document.getElementById("silentAnchor");
   if (silentAnchor) silentAnchor.pause();
   startSyncFollow(s);
-  player.src = s.audio;
+  player.src = audioFor(s);
   player.playbackRate = cfg.rate;
   player.currentTime = 0;
   player.play();
@@ -1080,7 +1099,7 @@ function startSpeak() {
   updateMediaSession(true);
 
   var silentAnchor = document.getElementById("silentAnchor");
-  if (s.audio) {
+  if (audioFor(s)) {
     speakTitleThenPlayAudio(s);
     return;
   }
