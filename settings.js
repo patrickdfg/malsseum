@@ -578,8 +578,7 @@
     });
     s.appendChild(el.audioFirst.row);
     s.appendChild(mk('div', 'sa-note',
-      '고른 것이 그 편에 없으면 녹음 → 현수 → 기기 차례로 넘어갑니다. ' +
-      '기기 목소리는 폰에 깔린 것을 그 자리에서 읽는 것이라 문단을 짚어 주지 못합니다.'));
+      '고른 것이 그 편에 없으면 녹음 → 현수 → 기기 차례로 넘어갑니다.'));
     inner.appendChild(s);
 
     s = section('읽기 속도');
