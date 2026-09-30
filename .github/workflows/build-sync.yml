@@ -45,7 +45,8 @@ jobs:
           python-version: '3.12'
 
       - name: 받아쓰기 도구 설치
-        run: python -m pip install --disable-pip-version-check faster-whisper==1.2.1 cryptography==46.0.3
+        # av 19 는 faster-whisper 1.2.1 이 쓰는 av.open()의 metadata_errors 인자를 없애서 못 쓴다.
+        run: python -m pip install --disable-pip-version-check faster-whisper==1.2.1 cryptography==46.0.3 "av<19"
 
       - name: 문단 시간표 만들기
         run: python tools/build_sync.py --model "${{ inputs.model }}" ${{ inputs.numbers }}
