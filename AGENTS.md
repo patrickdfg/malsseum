@@ -14,6 +14,12 @@
 - `crypt.js`·`settings.js`·`analytics*.js` — sayeon 과 같은 파일(자기완결로 복사해 둠)
 - `crypt.json`·`check.enc` — sayeon 과 **같은 소금**이라 같은 암호(7125)로 풀린다
 
+## 저장칸 (하이라이트 모음)
+설정 옆 `⭐ 저장칸` 단추는 `/sayeon/saved/` 로 간다 — 성령사연·월명동·말씀,
+세 곳에서 칠한 하이라이트(`malHl_편번호` 등)를 한데 모아 보여주는 페이지다.
+이 저장소에는 파일이 없다(sayeon 쪽에만 있다). 자세한 내용은 `sayeon` 저장소의
+`AGENTS.md`(저장칸 항목)를 본다.
+
 ## 원고와 사진은 잠겨 있다
 - `.enc` 만 올린다. 브라우저는 `crypt.js`, 도구는 `tools/crypt.py` 로 푼다.
 - 도구를 돌릴 때는 환경변수 `SAYEON_PASS`(=7125), 깃허브 일꾼은 저장소 비밀값
