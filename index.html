@@ -7,17 +7,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
 <!-- 홈 화면에 추가했을 때 앱처럼 보이게 -->
-<link rel="manifest" href="/sayeon/manifest.json?v=20261004-scope">
+<link rel="manifest" href="/sayeon/manifest.json?v=20261004-inapp">
 <meta name="theme-color" content="#1b2018">
 <link rel="apple-touch-icon" href="/sayeon/icons/apple-touch-icon.png?v=4">
 <link rel="icon" href="/sayeon/icons/icon-192.png?v=4">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<script src="analytics-config.js"></script>
-<script src="analytics.js"></script>
-<script src="crypt.js"></script>
-<script src="settings.js?v=5"></script>
+<script src="/malsseum/analytics-config.js"></script>
+<script src="/malsseum/analytics.js"></script>
+<script src="/malsseum/crypt.js"></script>
+<script src="/malsseum/settings.js?v=5"></script>
 <script>
 /* 화면이 그려지기 전에 상태바 색을 정한다.
    브라우저가 이 색을 보고 상태바 글자(시계·배터리) 색을 정하기 때문에,
@@ -468,7 +468,7 @@
 */
 var MAL = [];
 SayeonAnalytics.trackSectionVisit("malsseum");
-var DATA_URL = "malsseum.json";
+var DATA_URL = "/malsseum/malsseum.json";
 
 /* ===== 설정 =====
    설정 화면과 저장은 settings.js 한 곳에 있다(세 페이지가 같이 쓴다).
@@ -1044,7 +1044,7 @@ function loadSync() {
   SYNC = {};
   var xhr = new XMLHttpRequest();
   // 편을 새로 넣으면 시간 자료도 같이 바뀌므로, 캐시된 옛 파일을 쓰지 않게 한다
-  xhr.open("GET", "audio/sync.json?v=" + (new Date()).getTime(), true);
+  xhr.open("GET", "/malsseum/audio/sync.json?v=" + (new Date()).getTime(), true);
   xhr.onreadystatechange = function () {
     if (xhr.readyState !== 4) return;
     try { SYNC = JSON.parse(xhr.responseText) || {}; } catch (e) { SYNC = {}; }
@@ -1119,7 +1119,8 @@ function playAudioNow(s) {
   var silentAnchor = document.getElementById("silentAnchor");
   if (silentAnchor) silentAnchor.pause();
   startSyncFollow(s);
-  player.src = audioFor(s);
+  var audioPath = audioFor(s);
+  player.src = audioPath.charAt(0) === "/" ? audioPath : "/malsseum/" + audioPath;
   player.playbackRate = cfg.rate;
   player.currentTime = 0;
   player.play();
@@ -1176,7 +1177,7 @@ var SEARCH_SOURCES = [
   { label: "성령사연 2026", kind: "sayeon", url: "/sayeon/sayeon.json", base: "/sayeon/", year: "2026" },
   { label: "성령사연 2025", kind: "sayeon", url: "/sayeon/sayeon2025.json", base: "/sayeon/", year: "2025" },
   { label: "월명동사연", kind: "stones", url: "/sayeon/stones/stones.json", base: "/sayeon/stones/" },
-  { label: "말씀", kind: "sayeon", url: "malsseum.json", base: "",
+  { label: "말씀", kind: "sayeon", url: "/malsseum/malsseum.json", base: "/sayeon/malsseum/",
     local: function () { return MAL; } }
 ];
 

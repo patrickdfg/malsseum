@@ -8,11 +8,20 @@
 ## 대화 규칙
 - **시작할 때 먼저 `git pull`**, 끝낼 때 **커밋하고 푸시**. (집·사무실 두 대에서 쓴다)
 
+## 앱 화면 경로 — 2026-10-04 사용자 결정
+
+- 설치 앱의 말씀 탭·검색·저장칸은 `/sayeon/malsseum/`에서 연다.
+- 원고는 `/malsseum/malsseum.json.enc`, 음성·문단 시간표는 `/malsseum/audio/`에서 가져온다.
+- 이 저장소의 `index.html`과 `sayeon/malsseum/index.html`은 동일한 화면 코드로 유지한다.
+  화면 수정은 두 저장소에 함께 반영한다. 원고·녹음은 이 저장소에서만 관리한다.
+- `/malsseum/`으로 앱 내부 이동 경로를 바꾸거나 PWA 범위를 넓혀 해결하지 않는다.
+  기존 설치 앱 범위 `/sayeon/`에서 열어 크롬 X 닫기 막대를 방지한다.
+
 ## 구조
 - `index.html` — 말씀 뷰어 (탭에서 성령사연 `/sayeon/`, 월명동 `/sayeon/stones/` 로 간다)
 - `malsseum.json.enc` — 잠긴 원고. `audio/*.mp3` + `audio/sync.json` — 음성과 문단 시간표
 - `crypt.js`·`settings.js`·`analytics*.js` — sayeon 과 같은 파일(자기완결로 복사해 둠)
-- `crypt.json`·`check.enc` — sayeon 과 **같은 소금**이라 같은 암호(7125)로 풀린다
+- `crypt.json`·`check.enc` — sayeon 과 **같은 소금**이라 같은 암호로 풀린다
 
 ## 저장칸 (하이라이트 모음)
 설정 옆 `⭐ 저장칸` 단추는 `/sayeon/saved/` 로 간다 — 성령사연·월명동·말씀,
@@ -22,7 +31,7 @@
 
 ## 원고와 사진은 잠겨 있다
 - `.enc` 만 올린다. 브라우저는 `crypt.js`, 도구는 `tools/crypt.py` 로 푼다.
-- 도구를 돌릴 때는 환경변수 `SAYEON_PASS`(=7125), 깃허브 일꾼은 저장소 비밀값
+- 도구를 돌릴 때는 환경변수 `SAYEON_PASS`, 깃허브 일꾼은 저장소 비밀값
   `SAYEON_PASS` 에서 받는다. **이 저장소에도 그 비밀값을 넣어야** 자동 게시가 된다.
 
 ## 말씀 추가하기
