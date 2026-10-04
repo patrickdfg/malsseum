@@ -106,14 +106,14 @@
 
   .card-head {
     background: var(--green); color: #14180f;
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
     gap: 10px; padding: 14px 16px; border-radius: 4px;
   }
   .card-head .t {
     font-size: 21px; font-weight: 600; flex: 1 1 auto; min-width: 0;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    white-space: normal; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.4;
   }
-  .card-head-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .card-head-actions { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; margin-left: auto; }
   .speakbtn {
     background: rgba(20,24,15,.14); color: #14180f; border: 0;
     border-radius: 999px; padding: 8px 14px; font-size: 15px;
@@ -123,12 +123,18 @@
   .speakbtn.on { background: #14180f; color: var(--green); }
   .speakbtn.human { background: var(--gold); color: #2a2200; }
   .speakbtn.human.on { background: #2a2200; color: var(--gold); }
-  .speakbtn.readcount.done { background: #14180f; color: var(--green); }
+  .speakbtn.readcount {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 9px; font-size: 12px;
+    border: 1px solid rgba(20,24,15,.45);
+  }
+  .speakbtn.readcount svg { width: 12px; height: 12px; flex: 0 0 auto; }
+  .speakbtn.readcount:focus-visible { outline: 2px solid #14180f; outline-offset: 2px; }
   .speakbtn.readminus { min-width: 40px; padding-left: 11px; padding-right: 11px; font-size: 21px; line-height: 1; }
   .speakbtn:disabled { opacity: .35; cursor: default; }
   @media (max-width: 420px) {
     .card-head { gap: 6px; padding: 12px 12px; }
-    .card-head .t { font-size: 17px; }
+    .card-head .t { font-size: 17px; flex-basis: 100%; }
     .speakbtn { padding: 7px 10px; font-size: 12px; min-height: 34px; }
     .card-head-actions { gap: 5px; }
   }
@@ -359,7 +365,7 @@
       <div class="t"><span id="ctitle"></span></div>
       <div class="card-head-actions">
         <button class="speakbtn readminus" id="readCountMinus" type="button" aria-label="읽은 횟수 1회 줄이기" disabled>−</button>
-        <button class="speakbtn readcount" id="readCountBtn" type="button" aria-label="다 읽었으면 눌러서 기록">다 읽음</button>
+        <button class="speakbtn readcount" id="readCountBtn" type="button" aria-label="다 읽었으면 눌러서 기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span id="readCountLabel">읽음</span></button>
         <button class="speakbtn" id="speak">🔊 듣기</button>
       </div>
     </div>
@@ -795,7 +801,7 @@ function render(keepSpeaking) {
   SayeonAnalytics.trackPage("malsseum", epNum, fullTitle(s, idx), "2026");
   var hls = getHighlights(epNum);
   var rc = getReadCount(epNum);
-  $("readCountBtn").textContent = rc > 0 ? rc + "독" : "다 읽음";
+  $("readCountLabel").textContent = rc > 0 ? rc + "독" : "읽음";
   $("readCountBtn").classList.toggle("done", rc > 0);
   $("readCountMinus").disabled = rc === 0;
   buildLegend(s);
@@ -1497,7 +1503,7 @@ $("readCountBtn").onclick = function () {
   var epNum = numOf(s, idx);
   var n = bumpReadCount(epNum);
   SayeonAnalytics.trackRead("malsseum", epNum, fullTitle(s, idx), "2026");
-  $("readCountBtn").textContent = n + "독";
+  $("readCountLabel").textContent = n + "독";
   $("readCountBtn").classList.add("done");
   $("readCountMinus").disabled = false;
 };
@@ -1505,7 +1511,7 @@ $("readCountMinus").onclick = function () {
   var s = MAL[idx];
   if (!s) return;
   var n = lowerReadCount(numOf(s, idx));
-  $("readCountBtn").textContent = n > 0 ? n + "독" : "다 읽음";
+  $("readCountLabel").textContent = n > 0 ? n + "독" : "읽음";
   $("readCountBtn").classList.toggle("done", n > 0);
   $("readCountMinus").disabled = n === 0;
 };
