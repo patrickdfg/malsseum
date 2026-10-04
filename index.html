@@ -106,12 +106,12 @@
 
   .card-head {
     background: var(--green); color: #14180f;
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between;
     gap: 10px; padding: 14px 16px; border-radius: 4px;
   }
   .card-head .t {
     font-size: 21px; font-weight: 600; flex: 1 1 auto; min-width: 0;
-    white-space: normal; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.4;
+    white-space: nowrap; line-height: 1.4;
   }
   .card-head-actions { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; margin-left: auto; }
   .speakbtn {
@@ -133,10 +133,12 @@
   .speakbtn.readminus { min-width: 40px; padding-left: 11px; padding-right: 11px; font-size: 21px; line-height: 1; }
   .speakbtn:disabled { opacity: .35; cursor: default; }
   @media (max-width: 420px) {
-    .card-head { gap: 6px; padding: 12px 12px; }
-    .card-head .t { font-size: 17px; flex-basis: 100%; }
-    .speakbtn { padding: 7px 10px; font-size: 12px; min-height: 34px; }
-    .card-head-actions { gap: 5px; }
+    .card-head { gap: 5px; padding: 12px 8px; }
+    .card-head .t { font-size: 14px; }
+    .speakbtn { padding: 6px 7px; font-size: 11px; min-height: 34px; }
+    .speakbtn.readcount { padding: 5px 6px; font-size: 11px; gap: 3px; }
+    .speakbtn.readminus { min-width: 28px; padding: 5px; font-size: 18px; }
+    .card-head-actions { gap: 4px; }
   }
   .seekwrap { display: none; align-items: center; gap: 10px; padding: 10px 16px 0; }
   .seekwrap.show { display: flex; }
@@ -1722,6 +1724,33 @@ SaSettings.init({ unit: '편' });
 SaCrypt.resume().then(function (ok) {
   if (ok) enter(); else $("pw").focus();
 });
+</script>
+
+<script>
+// Keep the full date/title beside the controls, including on narrow phones.
+(function () {
+  var title = document.getElementById("ctitle");
+  var box = title.parentElement;
+  var pending = false;
+  function fitTitle() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function () {
+      pending = false;
+      title.style.fontSize = "";
+      if (!box.clientWidth) return;
+      var size = parseFloat(getComputedStyle(title).fontSize);
+      while (title.getBoundingClientRect().width > box.clientWidth && size > 10) {
+        size -= 0.5;
+        title.style.fontSize = size + "px";
+      }
+    });
+  }
+  new MutationObserver(fitTitle).observe(title, { childList: true, characterData: true, subtree: true });
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(fitTitle).observe(box);
+  window.addEventListener("resize", fitTitle);
+  fitTitle();
+}());
 </script>
 </body>
 </html>
