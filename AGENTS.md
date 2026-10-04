@@ -103,3 +103,11 @@
 - 손으로 시험할 때는 Actions 의 "새 말씀 알림" 을 돌린다(시험 알림이 기본값).
 
 ## HTML 을 파이썬으로 고치면 끝나고 문법 검사(node --check)를 하자.
+
+## 말씀 화자별 인용 색상 — 필수 유지 규칙 (2026-10-04)
+말씀 등록·가져오기·교체 또는 화면 변경 전에 [docs/SPEAKER_COLORS.md](docs/SPEAKER_COLORS.md)를 읽는다.
+하나님(금색)·성령님(초록)·성자(분홍)·선생님(보라)·예수님(파랑)의 인용 색과 범례를 유지한다.
+기존 문단의 p/sp 정보를 삭제하지 않는다. 새 원고는 화자 인용 누락을 검토한다.
+뷰어의 inferSpeaker/speakerRanges/renderParagraph/buildLegend와 sp-* CSS를 함께 확인한다.
+수동 하이라이트 우선, 원래 줄바꿈·글자 위치 유지, 두 말씀 HTML 동일 반영을 지킨다.
+문법 검사·화자별 색상 검증·두 저장소 배포 확인 후 UPDATE_HISTORY.md에 기록한다.
