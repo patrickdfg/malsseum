@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
 <!-- 홈 화면에 추가했을 때 앱처럼 보이게 -->
-<link rel="manifest" href="/sayeon/manifest.json">
+<link rel="manifest" href="/sayeon/manifest.json?v=20261004-scope">
 <meta name="theme-color" content="#1b2018">
 <link rel="apple-touch-icon" href="/sayeon/icons/apple-touch-icon.png?v=4">
 <link rel="icon" href="/sayeon/icons/icon-192.png?v=4">
@@ -327,6 +327,21 @@
     cursor: pointer; font-family: inherit; min-height: 46px;
   }
   .lockwarn { color: #d8837f; font-size: 14px; margin-top: 12px; display: none; }
+
+/* 세 자료실의 이동 탭과 설정은 좁은 휴대폰에서도 같은 한 줄에 둔다. */
+.site-tabs {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, .7fr) 44px;
+  align-items: center; gap: 6px; width: 100%;
+}
+.site-tabs .tab {
+  min-width: 0; padding: 8px 4px; min-height: 44px;
+  font-size: clamp(12px, 3.5vw, 14px); box-sizing: border-box;
+  white-space: nowrap;
+}
+.site-tabs .gearbtn {
+  margin-left: 0; width: 44px; height: 44px; box-sizing: border-box;
+  font-size: 18px;
+}
 </style>
 </head>
 <body>
@@ -341,7 +356,7 @@
 </div>
 
 <div class="wrap" id="wrap">
-  <nav class="tabs">
+  <nav class="tabs site-tabs" aria-label="자료실 이동">
     <a class="tab" href="/sayeon/">성령사연</a>
     <a class="tab" href="/sayeon/stones/">월명동사연</a>
     <span class="tab on" aria-current="page">말씀</span>
