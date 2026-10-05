@@ -633,6 +633,13 @@
     resetRow.appendChild(rb);
     inner.appendChild(resetRow);
 
+    var aiRow = mk('div', 'sa-opts');
+    var aiButton = mk('button', 'sa-bar', 'AI 챗봇');
+    aiButton.type = 'button';
+    aiButton.onclick = function () { close(); global.location.href = '/sayeon/ai-lab.html'; };
+    aiRow.appendChild(aiButton);
+    inner.appendChild(aiRow);
+
     el.wrap.appendChild(inner);
     document.body.appendChild(el.back);
     document.body.appendChild(el.wrap);
@@ -729,3 +736,4 @@
     fonts: FONTS, themes: THEMES, mix: mix, isLight: isLight
   };
 })(window);
+
