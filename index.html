@@ -344,6 +344,9 @@
   margin-left: 0; width: 44px; height: 44px; box-sizing: border-box;
   font-size: 18px;
 }
+/* 말씀 연도 탭: 다섯 해를 한 줄에 둔다 */
+#yearTabs { flex-wrap: nowrap; gap: 6px; }
+#yearTabs .tab { flex: 1 1 0; min-width: 0; padding: 6px 0; min-height: 38px; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -364,8 +367,15 @@
     <span class="tab on" aria-current="page">말씀</span>
     <button type="button" class="gearbtn" id="opensettings" aria-label="설정">⚙</button>
   </nav>
+  <nav class="tabs" id="yearTabs" aria-label="연도">
+    <button type="button" class="tab on" data-year="2026">2026</button>
+    <button type="button" class="tab" data-year="2023">2023</button>
+    <button type="button" class="tab" data-year="2022">2022</button>
+    <button type="button" class="tab" data-year="2021">2021</button>
+    <button type="button" class="tab" data-year="2020">2020</button>
+  </nav>
   <div class="headrow">
-    <h1 class="head">2026년 말씀</h1>
+    <h1 class="head" id="pageHead">2026년 말씀</h1>
   </div>
   <div class="topbar">
     <button class="topbtn" id="openlist">📋 목록</button>
@@ -471,6 +481,12 @@
 var MAL = [];
 SayeonAnalytics.trackSectionVisit("malsseum");
 var DATA_URL = "/malsseum/malsseum.json";
+/* 2025년 이전(2020~2023) 말씀은 따로 둔 파일에 있다. 음성 없이 글만 올렸다.
+   편마다 year 가 있고, no 는 1000 부터라 2026 편과 겹치지 않는다. */
+var OLD_URL = "/malsseum/malsseum_old.json";
+var YEARS = ["2026", "2023", "2022", "2021", "2020"];
+var currentYear = "2026";
+var OLD_ALL = null;
 
 /* ===== 설정 =====
    설정 화면과 저장은 settings.js 한 곳에 있다(세 페이지가 같이 쓴다).
@@ -1209,7 +1225,9 @@ var SEARCH_SOURCES = [
   { label: "성령사연 2025", kind: "sayeon", url: "/sayeon/sayeon2025.json", base: "/sayeon/", year: "2025" },
   { label: "월명동사연", kind: "stones", url: "/sayeon/stones/stones.json", base: "/sayeon/stones/" },
   { label: "말씀", kind: "sayeon", url: "/malsseum/malsseum.json", base: "/sayeon/malsseum/",
-    local: function () { return MAL; } }
+    local: function () { return currentYear === "2026" ? MAL : null; } },
+  { label: "말씀 2020~2023", kind: "sayeon", url: "/malsseum/malsseum_old.json", base: "/sayeon/malsseum/",
+    local: function () { return OLD_ALL; } }
 ];
 
 // 검색 결과를 눌렀을 때: 같은 페이지면 바로 넘기고, 다른 페이지면 주소로 넘어간다
@@ -1217,7 +1235,7 @@ function gotoHit(src, h) {
   var kw = $("q").value.replace(/^\s+|\s+$/g, "");
   if (src.base === "") { idx = h.idx; findQuery = kw; closeAll(); render(); return; }
   location.href = src.base + "#n=" + encodeURIComponent(h.item.no || h.item.num) +
-    (src.year ? "&y=" + src.year : "") + "&q=" + encodeURIComponent(kw);
+    ((src.year || h.item.year) ? "&y=" + (src.year || h.item.year) : "") + "&q=" + encodeURIComponent(kw);
 }
 
 
@@ -1652,9 +1670,64 @@ function showLoadError(msg) {
   $("opensearch").disabled = true;
 }
 
+function oldAll() {
+  if (OLD_ALL) return Promise.resolve(OLD_ALL);
+  return SaCrypt.json(OLD_URL).then(function (a) { OLD_ALL = a || []; return OLD_ALL; });
+}
+
+function showYear() {
+  var bs = $("yearTabs").querySelectorAll("button");
+  for (var i = 0; i < bs.length; i++) {
+    bs[i].className = "tab" + (bs[i].getAttribute("data-year") === currentYear ? " on" : "");
+  }
+  $("pageHead").textContent = currentYear + "년 말씀";
+  document.title = currentYear + "년 말씀";
+}
+
+// 주소의 #n=편번호(&y=연도) 를 보고 어느 해 자료를 열지 정한다
+function yearFromHash() {
+  var no = hashParam("n"), y = hashParam("y");
+  if (no === null) return Promise.resolve();
+  if (y && YEARS.indexOf(y) >= 0) { currentYear = y; return Promise.resolve(); }
+  if (+no < 1000) { currentYear = "2026"; return Promise.resolve(); }
+  return oldAll().then(function (a) {
+    for (var i = 0; i < a.length; i++) {
+      if (String(a[i].no) === String(no)) { currentYear = String(a[i].year); return; }
+    }
+  });
+}
+
+function yearList() {
+  if (currentYear === "2026") return SaCrypt.json(DATA_URL);
+  return oldAll().then(function (a) {
+    return a.filter(function (s) { return String(s.year) === currentYear; });
+  });
+}
+
+function switchYear(year) {
+  if (year === currentYear || YEARS.indexOf(year) < 0) return;
+  stopSpeak();
+  currentYear = year;
+  try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  MAL = [];
+  loadData();
+}
+(function () {
+  var bs = $("yearTabs").querySelectorAll("button");
+  for (var i = 0; i < bs.length; i++) {
+    bs[i].onclick = function () { switchYear(this.getAttribute("data-year")); };
+  }
+})();
+window.addEventListener("hashchange", function () {
+  if (hashParam("n") !== null) { stopSpeak(); closeAll(); loadData(); }
+});
+
 function loadData() {
   $("total").textContent = "불러오는 중…";
-  SaCrypt.json(DATA_URL).then(function (list) {
+  yearFromHash().then(function () {
+    showYear();
+    return yearList();
+  }).then(function (list) {
     MAL = list || [];
     if (!MAL.length) { showLoadError("(내용이 비어 있음)"); return; }
     idx = MAL.length - 1;
