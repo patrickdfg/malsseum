@@ -1221,8 +1221,8 @@ function stopSpeak() {
 /* ===== 검색 ===== */
 /* 어느 페이지에서든 세 카테고리를 모두 찾는다 */
 var SEARCH_SOURCES = [
-  { label: "성령사연 2026", kind: "sayeon", url: "/sayeon/sayeon.json", base: "/sayeon/", year: "2026" },
-  { label: "성령사연 2025", kind: "sayeon", url: "/sayeon/sayeon2025.json", base: "/sayeon/", year: "2025" },
+  { label: "성령사연", kind: "sayeon", url: "/sayeon/sayeon.json", base: "/sayeon/", year: "2026" },
+  { label: "성령사연", kind: "sayeon", url: "/sayeon/sayeon2025.json", base: "/sayeon/", year: "2025" },
   { label: "월명동사연", kind: "stones", url: "/sayeon/stones/stones.json", base: "/sayeon/stones/" },
   { label: "말씀", kind: "sayeon", url: "/malsseum/malsseum.json", base: "/sayeon/malsseum/",
     local: function () { return currentYear === "2026" ? MAL : null; } },
@@ -1452,6 +1452,14 @@ function runSearch() {
 }
 
 function paintResults(blocks, total) {
+  var groups = [];
+  blocks.forEach(function (blk) {
+    if (!blk) return;
+    var group = groups.filter(function (g) { return g.src.label === blk.src.label; })[0];
+    if (!group) { group = { src: blk.src, hits: [] }; groups.push(group); }
+    blk.hits.forEach(function (h) { h.src = blk.src; group.hits.push(h); });
+  });
+  blocks = groups;
   var box = $("results");
   box.innerHTML = "";
   if (!total) {
@@ -1485,7 +1493,7 @@ function paintResults(blocks, total) {
         s.textContent = h.snip;
         btn.appendChild(s);
       }
-      btn.onclick = function () { gotoHit(blk.src, h); };
+      btn.onclick = function () { gotoHit(h.src, h); };
       box.appendChild(btn);
     });
   });
@@ -1854,5 +1862,6 @@ SaCrypt.resume().then(function (ok) {
   fitTitle();
 }());
 </script>
+<script type="module" src="/sayeon/support-badge.mjs?v=1" data-inquiry-badge></script>
 </body>
 </html>
