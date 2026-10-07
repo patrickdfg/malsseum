@@ -21,10 +21,77 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_PATH = os.path.join(ROOT, "malsseum.json")
 
 
+def hwp_records(body):
+    pos = 0
+    while pos + 4 <= len(body):
+        value = struct.unpack_from("<I", body, pos)[0]
+        pos += 4
+        tag = value & 0x3ff
+        level = (value >> 10) & 0x3ff
+        size = (value >> 20) & 0xfff
+        if size == 0xfff:
+            size = struct.unpack_from("<I", body, pos)[0]
+            pos += 4
+        yield tag, level, body[pos:pos + size]
+        pos += size
+
+
+def read_numbering(ole, compressed):
+    """원고의 '문단 번호'(1. 2. 3.)는 글자가 아니라 문단 모양에 들어 있어서 본문 글자만
+    읽으면 통째로 빠진다. 문단 모양마다 (머리 종류, 번호 정의, 수준)을, 번호 정의마다
+    수준별 형식('^1.')을 읽어 둔다. 1. 2. 3. 모양만 확인했다. 글머리표(●)는 가져오지 않는다."""
+    body = ole.openstream("DocInfo").read()
+    if compressed:
+        body = zlib.decompress(body, -15)
+    shapes, formats = [], []
+    for tag, _, data in hwp_records(body):
+        if tag == 25:      # 문단 모양
+            attr = struct.unpack_from("<I", data, 0)[0]
+            shapes.append(((attr >> 23) & 3, struct.unpack_from("<H", data, 30)[0],
+                           (attr >> 25) & 7))
+        elif tag == 23:    # 번호 정의: 7수준 x (속성·너비·간격·글자모양 + 형식 글자)
+            levels, pos = [], 0
+            try:
+                for _ in range(7):
+                    pos += 12
+                    count = struct.unpack_from("<H", data, pos)[0]
+                    pos += 2
+                    levels.append(data[pos:pos + 2 * count].decode("utf-16le"))
+                    pos += 2 * count
+            except struct.error:
+                levels = []
+            formats.append(levels)
+    return shapes, formats
+
+
+class Numberer:
+    """번호 문단이 나올 때마다 세어 '12.' 같은 글자를 만든다. 글자 없는 번호 문단도 번호를 먹는다."""
+
+    def __init__(self, shapes, formats):
+        self.shapes, self.formats = shapes, formats
+        self.counters = {}
+        self.count = 0
+
+    def label(self, shape_id):
+        if shape_id >= len(self.shapes):
+            return None
+        head, numid, level = self.shapes[shape_id]
+        if head != 2 or not (1 <= numid <= len(self.formats)) or not self.formats[numid - 1]:
+            return None
+        counter = self.counters.setdefault(numid, [0] * 7)
+        counter[level] += 1
+        for deeper in range(level + 1, 7):
+            counter[deeper] = 0
+        self.count += 1
+        return re.sub(r"\^([1-7])", lambda m: str(max(counter[int(m.group(1)) - 1], 1)),
+                      self.formats[numid - 1][level])
+
+
 def extract_hwp_paragraphs(path):
     ole = olefile.OleFileIO(path)
     header = ole.openstream("FileHeader").read()
     compressed = bool(struct.unpack_from("<I", header, 36)[0] & 1)
+    numberer = Numberer(*read_numbering(ole, compressed))
     records = []
     sections = sorted(
         (entry for entry in ole.listdir()
@@ -34,17 +101,11 @@ def extract_hwp_paragraphs(path):
         body = ole.openstream(entry).read()
         if compressed:
             body = zlib.decompress(body, -15)
-        pos = 0
-        while pos + 4 <= len(body):
-            value = struct.unpack_from("<I", body, pos)[0]
-            pos += 4
-            tag = value & 0x3ff
-            size = (value >> 20) & 0xfff
-            if size == 0xfff:
-                size = struct.unpack_from("<I", body, pos)[0]
-                pos += 4
-            record = body[pos:pos + size]
-            pos += size
+        label = None
+        for tag, level, record in hwp_records(body):
+            if tag == 66 and level == 0:     # 문단 머리: 번호 문단이면 여기서 번호를 센다
+                label = numberer.label(struct.unpack_from("<H", record, 8)[0])
+                continue
             if tag != 67:
                 continue
             text = decode_para_text(record)
@@ -52,7 +113,13 @@ def extract_hwp_paragraphs(path):
                      for line in re.split(r"[\r\n]+", text)]
             lines = [line for line in lines if line.strip()]
             if lines:
+                if label and level == 1:
+                    lines[0] = label + " " + lines[0]
                 records.append(lines)
+            if level == 1:
+                label = None
+    if numberer.count:
+        print("번호 %d개를 원고의 문단 번호대로 붙임" % numberer.count, file=sys.stderr)
     return records
 
 
@@ -100,6 +167,7 @@ def clean_records(records):
 # '문장이 안 끝났거나 라는/라고 로 이어지는' 곳만 앞 단락에 붙인다. 줄은 그대로 둔다.
 SENTENCE_END = tuple(".?!…”’\"')]>」』")
 CONTINUES = re.compile(r"^(?:이?라(?:는|고|며|서)|이?란)\s")
+NUMBERED = re.compile(r"^\d+\.\s")
 
 
 def join_continuations(records):
@@ -107,7 +175,9 @@ def join_continuations(records):
     for record in records:
         if out:
             last = out[-1][-1].rstrip()
-            if (last and last[-1] not in SENTENCE_END) or CONTINUES.match(record[0]):
+            if NUMBERED.match(record[0]):
+                pass     # 번호 하나가 한 단락이다
+            elif (last and last[-1] not in SENTENCE_END) or CONTINUES.match(record[0]):
                 joined.append((out[-1][-1], record[0]))
                 out[-1] = out[-1] + record
                 continue
