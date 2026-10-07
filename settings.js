@@ -268,6 +268,10 @@
     '.sa-opt{background:var(--sa-panel);color:var(--sa-text);border:0;border-radius:8px;' +
     'padding:10px 14px;font-size:15px;font-family:inherit;cursor:pointer;min-height:44px}' +
     '.sa-opt.sel{background:var(--sa-accent);color:var(--sa-on-accent);font-weight:700}' +
+    '.sa-footer-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch}' +
+    '.sa-footer-actions .sa-opt{width:100%}' +
+    '.sa-opt.sa-ai{background:#2563eb;color:#fff;font-weight:700}' +
+    '.sa-opt.sa-ai:hover{background:#1d4ed8}' +
     '.sa-step{display:flex;align-items:center;gap:10px}' +
     '.sa-rnd{width:44px;height:44px;border-radius:50%;border:0;background:var(--sa-panel);' +
     'color:var(--sa-text);font-size:20px;cursor:pointer;font-family:inherit}' +
@@ -626,19 +630,16 @@
     s.appendChild(el.bgColor.row);
     inner.appendChild(s);
 
-    var resetRow = mk('div', 'sa-opts');
+    var resetRow = mk('div', 'sa-footer-actions');
     var rb = mk('button', 'sa-opt', '기본값으로');
     rb.type = 'button';
     rb.onclick = function () { set(DEF); };
-    resetRow.appendChild(rb);
-    inner.appendChild(resetRow);
-
-    var aiRow = mk('div', 'sa-opts');
-    var aiButton = mk('button', 'sa-bar', 'AI 챗봇');
+    var aiButton = mk('button', 'sa-opt sa-ai', 'AI 챗봇');
     aiButton.type = 'button';
     aiButton.onclick = function () { close(); global.location.href = '/sayeon/ai-lab.html'; };
-    aiRow.appendChild(aiButton);
-    inner.appendChild(aiRow);
+    resetRow.appendChild(rb);
+    resetRow.appendChild(aiButton);
+    inner.appendChild(resetRow);
 
     el.wrap.appendChild(inner);
     document.body.appendChild(el.back);
