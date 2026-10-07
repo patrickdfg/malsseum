@@ -6,6 +6,7 @@ import json
 import os
 import re
 import struct
+import sys
 import zlib
 
 import olefile
@@ -95,7 +96,26 @@ def clean_records(records):
             if not any(re.search(r"\.hwp", line, re.I) for line in record)]
 
 
-def make_entry(path, number, audio=None):
+# 원고에 따라 줄마다 엔터를 쳐서 한 문장이 두 단락으로 갈라져 있다. --join 을 주면
+# '문장이 안 끝났거나 라는/라고 로 이어지는' 곳만 앞 단락에 붙인다. 줄은 그대로 둔다.
+SENTENCE_END = tuple(".?!…”’\"')]>」』")
+CONTINUES = re.compile(r"^(?:이?라(?:는|고|며|서)|이?란)\s")
+
+
+def join_continuations(records):
+    out, joined = [], []
+    for record in records:
+        if out:
+            last = out[-1][-1].rstrip()
+            if (last and last[-1] not in SENTENCE_END) or CONTINUES.match(record[0]):
+                joined.append((out[-1][-1], record[0]))
+                out[-1] = out[-1] + record
+                continue
+        out.append(list(record))
+    return out, joined
+
+
+def make_entry(path, number, audio=None, join=False):
     extracted = extract_hwp_paragraphs(path)
     raw = [[line.strip() for line in record if line.strip()]
            for record in clean_records(extracted)]
@@ -123,7 +143,12 @@ def make_entry(path, number, audio=None):
     if scripture:
         paragraphs.append(scripture)
     paragraphs.append({"hr": True})
-    paragraphs.extend([record for record in tail if record])
+    rest = [record for record in tail if record]
+    if join:
+        rest, joined = join_continuations(rest)
+        for a, b in joined:
+            print("이은 곳: …%s | %s…" % (a[-18:], b[:18]), file=sys.stderr)
+    paragraphs.extend(rest)
 
     title = f"{month}월 {day}일 {service}"
     entry = {
@@ -145,8 +170,10 @@ def main():
     parser.add_argument("--audio")
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--replace", action="store_true")
+    parser.add_argument("--join", action="store_true",
+                        help="문장이 엔터로 갈라진 단락을 앞 단락에 잇는다")
     args = parser.parse_args()
-    entry, _ = make_entry(args.hwp, args.no, args.audio)
+    entry, _ = make_entry(args.hwp, args.no, args.audio, args.join)
     if not args.write:
         print(json.dumps(entry, ensure_ascii=False, indent=2))
         return

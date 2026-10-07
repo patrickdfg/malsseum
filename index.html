@@ -152,10 +152,12 @@
     font-size: 15px; text-decoration: none;
   }
 
-  .para { font-size: var(--size); line-height: var(--lh); margin: 0 0 1.5em; white-space: pre-wrap; }
+  .para { font-size: var(--size); line-height: var(--lh); margin: 0 0 1.5em; white-space: pre-wrap;
+          word-break: keep-all; overflow-wrap: break-word; }   /* 낱말 가운데서 끊기지 않게 */
   .phead {
     font-size: var(--size); font-weight: 700; color: var(--green);
     margin: 0 0 1em; line-height: var(--lh);
+    word-break: keep-all; overflow-wrap: break-word;
   }
   .hrline { border: 0; border-top: 1px solid; opacity: .2; margin: 6px 0 22px; }
   .para.reading { background: rgba(147,196,165,.28); border-radius: 4px; }
