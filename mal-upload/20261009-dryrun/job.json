@@ -1,0 +1,13 @@
+{
+ "hwp": "script.hwp",
+ "parts": [
+  "audio.mp3.part000",
+  "audio.mp3.part001"
+ ],
+ "sha256": "55f19cc31aa63240cc7f11ab5e6505ec33bb10f94f5fbca3e5dfd9047634e6f0",
+ "size": 10374412,
+ "join": true,
+ "replace": true,
+ "no": null,
+ "dry_run": true
+}
