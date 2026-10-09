@@ -724,7 +724,7 @@
   }
 
   /* ===== 공유 창: QR 과 설치 방법 ===== */
-  var SHARE_QR = '/sayeon/icons/share-qr.jpg';
+  var SHARE_QR = '/sayeon/icons/share-qr.svg';
   var SHARE_URL = 'https://patrickdfg.github.io/sayeon/';
   function buildShare() {
     if (el.share) return;
