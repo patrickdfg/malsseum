@@ -34,6 +34,20 @@
 - 도구를 돌릴 때는 환경변수 `SAYEON_PASS`, 깃허브 일꾼은 저장소 비밀값
   `SAYEON_PASS` 에서 받는다. **이 저장소에도 그 비밀값을 넣어야** 자동 게시가 된다.
 
+## 앱에서 말씀 올리기 (2026-10-09)
+`/sayeon/upload/` 의 '말씀' 탭에서 한글 원고(.hwp)와 녹음(.mp3)을 올리면 이 저장소의
+`mal-upload/<묶음>/` 에 `script.hwp`·`audio.mp3.partNNN`(6MB 조각)·`job.json` 이 올라오고,
+`.github/workflows/mal-upload.yml` 이 `tools/process_mal_upload.py` 로 처리한다. job.json 이 맨 나중에 올라와 일을 깨운다.
+
+- 처리: 조각 합치기·SHA-256 확인 → 원고 머리글에서 날짜(`audio/MMDD.mp3`)·제목 읽기 → 번호 매기기
+  (날짜가 가장 늦은 편의 다음 번호, 이미 있으면 건너뜀) → 25MB 넘으면 48kbps 모노로 줄이기 → 잠긴 자료에 넣기
+  → `build_sync.py` 로 문단 시간표 → 저장·배포. 시간표를 못 맞추면 게시는 하되 실행을 실패로 표시한다.
+- 같은 날 같은 말씀이 이미 있으면 멈춘다. 작업표에 `"replace": true` 를 넣으면 교체한다(앱 화면에는 없음).
+  `"dry_run": true` 는 검사만 하고 자료에 넣지 않는다. `"join"` 은 `--join` 과 같다(아래 1단계 참고).
+- 처리에서 막히면 올라온 묶음 폴더는 워크플로가 치운다. 다시 올리려면 앱에서 처음부터 올린다.
+- 필요한 것: 저장소 비밀값 `SAYEON_PASS`, 앱의 토큰이 이 저장소(Contents 쓰기·Actions 읽기)를 포함할 것.
+- 이 방식 이전의 직접 올리기(아래 순서)도 그대로 쓸 수 있다.
+
 ## 말씀 추가하기
 1. HWP 원고 → `python tools/import_malsseum_hwp.py <파일> --no <번호> --write` (SAYEON_PASS 필요)
    - 줄마다 엔터를 쳐서 한 문장이 두 단락으로 갈라진 원고(2026-10-07 수요말씀)는 `--join` 을 더한다.

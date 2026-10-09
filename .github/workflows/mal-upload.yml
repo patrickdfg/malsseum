@@ -1,0 +1,103 @@
+name: 말씀 원고·녹음 자동 게시
+
+# 앱(/sayeon/upload/)이 mal-upload/<묶음>/ 에 원고(HWP)·녹음 조각·작업표(job.json)를 올리면
+# 말씀 자료에 넣고, 문단 시간표까지 만들어 게시한다. job.json 이 맨 나중에 올라와 이 일을 깨운다.
+# 처리 내용은 tools/process_mal_upload.py 머리말에 있다.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mal-upload/*/job.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+env:
+  SAYEON_PASS: ${{ secrets.SAYEON_PASS }}
+
+concurrency:
+  group: mal-upload-main
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 도구 설치
+        # av 19 는 faster-whisper 1.2.1 이 쓰는 인자를 없애서 못 쓴다(build-sync.yml 과 같은 고정).
+        run: python -m pip install --disable-pip-version-check olefile cryptography==46.0.3 faster-whisper==1.2.1 "av<19"
+
+      - name: 원고·녹음을 말씀 자료에 넣기
+        id: process
+        run: python tools/process_mal_upload.py
+
+      - name: 문단 시간표 만들기
+        # 받아쓰기가 실패해도 원고·녹음은 게시한다. 시간표가 없으면 맨 끝 확인 단계가 실패로 알린다.
+        if: steps.process.outputs.no != ''
+        continue-on-error: true
+        run: python tools/build_sync.py --model base "${{ steps.process.outputs.no }}"
+
+      - name: 결과를 main 에 저장
+        run: |
+          git config user.name "sayeon-publisher[bot]"
+          git config user.email "sayeon-publisher[bot]@users.noreply.github.com"
+          git add -A malsseum.json.enc audio mal-upload
+          if git diff --cached --quiet; then
+            echo "저장할 변경이 없습니다."
+            exit 0
+          fi
+          python -m json.tool audio/sync.json >/dev/null
+          test -z "$(find audio -type f -size +99M -print -quit)"
+          git commit -m "앱에서 올린 말씀 게시"
+          git pull --rebase origin main
+          git push origin main
+
+      # 처리에서 막혔으면 올라온 묶음 폴더를 치워 저장소가 지저분해지지 않게 한다.
+      - name: 실패한 묶음 정리
+        if: failure() && steps.process.outcome == 'failure'
+        run: |
+          git config user.name "sayeon-publisher[bot]"
+          git config user.email "sayeon-publisher[bot]@users.noreply.github.com"
+          git rm -r -q mal-upload || true
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "앱에서 올린 말씀 처리 실패 — 올린 묶음 정리"
+          git pull --rebase origin main
+          git push origin main
+
+      - name: GitHub Pages 다시 배포
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail-with-body --retry 3 -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds"
+
+      # 게시는 끝났지만 시간표를 못 맞췄으면(녹음과 원고가 다른 편이거나 받아쓰기가 어긋남)
+      # 실패로 표시해 앱이 알리게 한다. 소리는 나오지만 화면이 문단을 따라가지 않는다.
+      - name: 시간표가 들어갔는지 확인
+        if: steps.process.outputs.no != ''
+        run: |
+          python - <<'PY'
+          import json
+          no = "${{ steps.process.outputs.no }}"
+          stem = "${{ steps.process.outputs.stem }}"
+          sync = json.load(open('audio/sync.json', encoding='utf-8'))
+          if no not in sync and stem not in sync:
+              raise SystemExit('::error::게시는 됐지만 문단 시간표를 맞추지 못했습니다. 녹음이 그 편의 원고가 맞는지 확인하세요.')
+          print('시간표 확인: OK')
+          PY
