@@ -929,7 +929,7 @@ function go(delta) {
 var synth = window.speechSynthesis;
 var queue = [], qi = 0, speaking = false;
 
-if (!synth) { $("speak").disabled = true; $("warn").style.display = "block"; }
+// 읽어주기 기능이 없는 브라우저는 음성 파일이 있는 편만 켠다 — updateSpeakBtn 이 편마다 정한다
 
 /* ===== 어느 음성을 틀까 =====
    성령사연과 같은 규칙을 쓴다. `audio` 는 올린 음성, `tts` 는 현수 음성이고
@@ -1063,6 +1063,10 @@ function updateSpeakBtn() {
   var btn = $("speak");
   btn.className = "speakbtn" + (human ? " human" : "") + (speaking ? " on" : "");
   btn.textContent = speaking ? "■ 정지" : ((human ? "🎙️" : "🤖") + " 듣기");
+  // 기기 목소리가 없는 브라우저(앱 안 브라우저 등)도 올린 음성 파일은 틀 수 있다
+  var noSpeech = !synth && !audioFor(s);
+  btn.disabled = noSpeech;
+  $("warn").style.display = noSpeech ? "block" : "none";
 }
 
 function advanceOrStop(completed) {
@@ -1200,6 +1204,7 @@ function startSpeak() {
   }
   if (s.quote) queue.push({ pi: -1, text: s.quote });
   qi = 0;
+  if (!synth) { stopSpeak(); return; }
   synth.cancel();
   speakNext();
 }
