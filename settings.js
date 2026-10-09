@@ -268,10 +268,28 @@
     '.sa-opt{background:var(--sa-panel);color:var(--sa-text);border:0;border-radius:8px;' +
     'padding:10px 14px;font-size:15px;font-family:inherit;cursor:pointer;min-height:44px}' +
     '.sa-opt.sel{background:var(--sa-accent);color:var(--sa-on-accent);font-weight:700}' +
-    '.sa-footer-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch}' +
+    '.sa-footer-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:stretch}' +
     '.sa-footer-actions .sa-opt{width:100%}' +
     '.sa-opt.sa-ai{background:#2563eb;color:#fff;font-weight:700}' +
     '.sa-opt.sa-ai:hover{background:#1d4ed8}' +
+    /* 공유 창 — QR 과 설치 방법 */
+    '.sa-share{display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:10000;overflow:auto;' +
+    '-webkit-overflow-scrolling:touch;background:rgba(0,0,0,.6);' +
+    'padding:calc(16px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom))}' +
+    '.sa-share.on{display:block}' +
+    '.sa-share-card{max-width:420px;margin:0 auto;background:var(--sa-bg);color:var(--sa-text);' +
+    'font-family:var(--sa-font);line-height:1.65;border-radius:14px;padding:18px 18px 20px}' +
+    '.sa-share-card h3{font-size:18px;margin:0 0 4px}' +
+    '.sa-share-sub{font-size:14px;opacity:.7;margin:0 0 14px}' +
+    '.sa-qr{background:#fff;border-radius:12px;padding:12px;text-align:center}' +
+    '.sa-qr img{width:100%;max-width:240px;height:auto;display:block;margin:0 auto}' +
+    '.sa-addr{display:block;margin-top:8px;font-size:13px;color:#2a2823;word-break:break-all;text-decoration:none}' +
+    '.sa-share-card h4{font-size:15px;margin:18px 0 6px;color:var(--sa-accent)}' +
+    '.sa-share-card ol{margin:0;padding-left:22px;font-size:15px}' +
+    '.sa-share-card li{margin-bottom:6px}' +
+    '.sa-share-card kbd{background:var(--sa-panel);border-radius:5px;padding:1px 6px;font-family:inherit;font-size:.95em}' +
+    '.sa-share-note{font-size:13px;opacity:.75;margin:14px 0 0}' +
+    '.sa-share-close{width:100%;margin-top:16px}' +
     '.sa-step{display:flex;align-items:center;gap:10px}' +
     '.sa-rnd{width:44px;height:44px;border-radius:50%;border:0;background:var(--sa-panel);' +
     'color:var(--sa-text);font-size:20px;cursor:pointer;font-family:inherit}' +
@@ -637,8 +655,12 @@
     var aiButton = mk('button', 'sa-opt sa-ai', 'AI 챗봇');
     aiButton.type = 'button';
     aiButton.onclick = function () { close(); global.location.href = '/sayeon/ai-lab.html'; };
+    var shareButton = mk('button', 'sa-opt', '공유');
+    shareButton.type = 'button';
+    shareButton.onclick = openShare;
     resetRow.appendChild(rb);
     resetRow.appendChild(aiButton);
+    resetRow.appendChild(shareButton);
     inner.appendChild(resetRow);
 
     el.wrap.appendChild(inner);
@@ -701,6 +723,74 @@
     paintVoices();
   }
 
+  /* ===== 공유 창: QR 과 설치 방법 ===== */
+  var SHARE_QR = '/sayeon/icons/share-qr.jpg';
+  var SHARE_URL = 'https://patrickdfg.github.io/sayeon/';
+  function buildShare() {
+    if (el.share) return;
+    var back = mk('div', 'sa-share');
+    back.setAttribute('role', 'dialog');
+    back.setAttribute('aria-modal', 'true');
+    back.setAttribute('aria-label', '공유 · 설치 방법');
+    back.onclick = function (e) { if (e.target === back) closeShare(); };
+    var card = mk('div', 'sa-share-card');
+    card.appendChild(mk('h3', '', '성령말씀 공유'));
+    card.appendChild(mk('p', 'sa-share-sub', '아래 QR을 찍으면 열립니다. 홈 화면에 두려면 설치 방법을 따라 하세요.'));
+    var qr = mk('div', 'sa-qr');
+    var img = document.createElement('img');
+    img.src = SHARE_QR;
+    img.alt = '성령말씀 QR 코드';
+    qr.appendChild(img);
+    var addr = mk('a', 'sa-addr', SHARE_URL.replace('https://', ''));
+    addr.href = SHARE_URL;
+    qr.appendChild(addr);
+    card.appendChild(qr);
+
+    function steps(title, items) {
+      card.appendChild(mk('h4', '', title));
+      var ol = document.createElement('ol');
+      for (var i = 0; i < items.length; i++) {
+        var li = document.createElement('li');
+        // [..] 로 묶은 곳은 단추 이름이라 kbd 로 보인다
+        var parts = items[i].split(/(\[[^\]]+\])/);
+        for (var j = 0; j < parts.length; j++) {
+          if (!parts[j]) continue;
+          if (parts[j].charAt(0) === '[') li.appendChild(mk('kbd', '', parts[j].slice(1, -1)));
+          else li.appendChild(document.createTextNode(parts[j]));
+        }
+        ol.appendChild(li);
+      }
+      card.appendChild(ol);
+    }
+    steps('안드로이드 (삼성 인터넷 · 크롬)', [
+      '위 QR을 찍어 주소를 엽니다.',
+      '화면에 [앱 설치] 또는 [홈 화면에 추가] 안내가 뜨면 누릅니다.',
+      '안 뜨면 오른쪽 위 [⋮] 또는 메뉴에서 [홈 화면에 추가]를 누릅니다.'
+    ]);
+    steps('아이폰 (사파리)', [
+      '위 QR을 찍어 주소를 엽니다.',
+      '화면 아래 가운데 [공유] 단추를 누릅니다.',
+      '목록을 내려 [홈 화면에 추가]를 누르고 [추가]를 누릅니다.'
+    ]);
+    card.appendChild(mk('p', 'sa-share-note',
+      '카카오톡·네이버 같은 앱 안에서 열었다면 홈 화면 추가나 알림이 안 될 수 있습니다. 그때는 삼성 인터넷이나 크롬(아이폰은 사파리)으로 다시 열어 주세요.'));
+    var cl = mk('button', 'sa-opt sa-share-close', '닫기');
+    cl.type = 'button';
+    cl.onclick = closeShare;
+    card.appendChild(cl);
+    back.appendChild(card);
+    (el.wrap || document.body).appendChild(back);   // 색 변수가 설정 창에 걸려 있어 그 안에 둔다
+    el.share = back;
+  }
+  function openShare() {
+    buildShare();
+    el.share.className = 'sa-share on';
+    el.share.scrollTop = 0;
+  }
+  function closeShare() {
+    if (el.share) el.share.className = 'sa-share';
+  }
+
   function open() {
     if (!el.wrap) return;
     paint();
@@ -712,6 +802,7 @@
     if (!el.wrap) return;
     stopSample();      // 미리 듣던 한 마디가 설정을 닫은 뒤에도 이어지지 않게
     if (el.voice) el.voice.open = false;   // 다음에 열 때는 막대만 보이게
+    closeShare();
     el.back.className = 'sa-back';
     el.wrap.className = 'sa-wrap';
   }
