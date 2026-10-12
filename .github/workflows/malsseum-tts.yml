@@ -42,7 +42,7 @@ jobs:
           python-version: '3.12'
 
       - name: 음성 도구 설치
-        run: python -m pip install --disable-pip-version-check edge-tts==7.2.8 cryptography==46.0.3
+        run: python -m pip install --disable-pip-version-check "edge-tts>=7.2.8,<8" cryptography==46.0.3
 
       - name: 만들 편 정하기
         id: plan
