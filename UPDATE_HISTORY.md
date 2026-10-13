@@ -1,3 +1,6 @@
+## 2026-10-13 settings.js v=12
+- sayeon 쪽 `settings.js` 가 `voiceLabels` 를 내보내도록 바뀌어 사본과 `?v=12` 를 맞췄다(말씀 화면 동작은 그대로).
+
 ## 2026-10-13 읽기 속도는 TTS 에만 적용, 녹음은 원래 속도
 - 말씀 녹음(육성)은 항상 100% 로 틀고 컴퓨터 목소리(현수) 파일과 기기 목소리만 설정의 읽기 속도를 따른다(sayeon 쪽 사본과 동일, `fileRate()`). `settings.js?v=11`. 자세한 것은 sayeon `UPDATE_HISTORY.md`.
 

@@ -828,7 +828,7 @@
     init: init, get: get, set: set, onChange: onChange,
     open: open, close: close, isOpen: isOpen, askPush: askPush,
     // 세 페이지가 같은 목소리를 쓰도록 고르는 일은 여기 한 곳에서만 한다
-    voices: koVoices, pickVoice: pickVoice,
+    voices: koVoices, pickVoice: pickVoice, voiceLabels: voiceLabels,
     fonts: FONTS, themes: THEMES, mix: mix, isLight: isLight
   };
 })(window);
