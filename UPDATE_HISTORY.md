@@ -1,3 +1,6 @@
+## 2026-10-13 읽기 속도는 TTS 에만 적용, 녹음은 원래 속도
+- 말씀 녹음(육성)은 항상 100% 로 틀고 컴퓨터 목소리(현수) 파일과 기기 목소리만 설정의 읽기 속도를 따른다(sayeon 쪽 사본과 동일, `fileRate()`). `settings.js?v=11`. 자세한 것은 sayeon `UPDATE_HISTORY.md`.
+
 ## 2026-10-13 안드로이드 앱(APK) 대응
 - sayeon 저장소의 안드로이드 앱(APK)이 말씀 화면에서도 폰의 모든 음성 엔진 목소리를 쓰도록 `index.html` 에 `/sayeon/app-tts.js` 를 더하고 `settings.js` 를 v=10 으로 맞췄다(sayeon 쪽 사본과 동일). 앱이 아니면 아무 일도 하지 않는다. 자세한 것은 sayeon `AGENTS.md` '안드로이드 앱'.
 

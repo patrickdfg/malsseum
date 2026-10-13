@@ -608,6 +608,8 @@
     s = section('읽기 속도');
     el.rate = stepper('rate', function (v) { return Math.round(v * 100) + '%'; });
     s.appendChild(el.rate.box);
+    s.appendChild(mk('div', 'sa-note',
+      '녹음은 원래 속도로 들려 드립니다. 컴퓨터 목소리(🤖)와 기기 목소리(📱)만 이 속도를 따르고, 기기 목소리는 다음 문단부터 바뀝니다.'));
     inner.appendChild(s);
 
     // 기기가 읽어 주는 편에만 쓰인다 (녹음이 있는 편은 그 파일을 튼다)
