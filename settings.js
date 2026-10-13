@@ -459,7 +459,9 @@
     if (!el.push) return;
     if (!pushSupported()) {
       el.push.row.style.display = 'none';
-      el.pushNote.textContent = '이 브라우저에서는 알림을 받을 수 없습니다. 안드로이드 크롬에서 열어 주세요.';
+      el.pushNote.textContent = global.SayeonApp
+        ? '앱에서는 알림을 받을 수 없습니다. 알림은 크롬으로 설치한 앱에서 받아 주세요.'
+        : '이 브라우저에서는 알림을 받을 수 없습니다. 안드로이드 크롬에서 열어 주세요.';
       return;
     }
     pushCurrent().then(function (sub) {
