@@ -65,6 +65,13 @@
 4. **음성을 넣었으면 문단 시간표를 만든다.** Actions 의 "말씀 문단 시간표 만들기"
    (`build-sync.yml`) 를 돌린다. 안 만들면 소리는 나는데 화면이 문단을 안 따라간다.
 
+## 소리 크기 — 모두 -18.4 LUFS (2026-10-14)
+
+- 사이트의 모든 소리는 -18.4 LUFS 에 맞춘다(sayeon 저장소 AGENTS.md '소리 크기 기준'). 말씀 음성도 같다.
+- `python tools/match_volume.py --check` 로 재 보고, `python tools/match_volume.py` (또는 `0802 0805` 처럼 파일 이름)로 맞춘다.
+  1 dB 안이면 건너뛰고 길이가 0.3초 넘게 바뀌면 되돌리므로 `audio/sync.json` 은 그대로 둔다.
+- 새 말씀을 올린 뒤에는 소리를 재 보고 어긋나면 맞춘다. (`ffmpeg` 가 없으면 `pip install imageio-ffmpeg`)
+
 ## 문단 시간표 (audio/sync.json)
 
 `{"편번호": [문단마다 시작 시각(초)]}` 이다. 뷰어는 재생 위치를 보고 그 문단을 짚는다.
