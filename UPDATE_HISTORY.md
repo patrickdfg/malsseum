@@ -1,3 +1,6 @@
+## 2026-10-14 index.html 에 검색 로봇 차단(noindex) 태그 추가
+- sayeon 저장소 `malsseum/index.html` 사본과 같게 `<meta name="robots" content="noindex,nofollow,noarchive">` 를 넣었다. 화면 동작은 그대로다.
+
 ## 2026-10-14 settings.js v=13 (고민 상담 단추)
 - sayeon 쪽 설정 맨 아래에 '고민 상담' 단추가 생겨 사본과 `?v=13` 을 맞췄다(말씀 화면 동작은 그대로). 자세한 것은 sayeon `UPDATE_HISTORY.md`.
 
