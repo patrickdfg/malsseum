@@ -1,3 +1,6 @@
+## 2026-10-14 settings.js v=13 (고민 상담 단추)
+- sayeon 쪽 설정 맨 아래에 '고민 상담' 단추가 생겨 사본과 `?v=13` 을 맞췄다(말씀 화면 동작은 그대로). 자세한 것은 sayeon `UPDATE_HISTORY.md`.
+
 ## 2026-10-13 settings.js v=12
 - sayeon 쪽 `settings.js` 가 `voiceLabels` 를 내보내도록 바뀌어 사본과 `?v=12` 를 맞췄다(말씀 화면 동작은 그대로).
 

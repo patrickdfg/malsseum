@@ -666,6 +666,12 @@
     resetRow.appendChild(aiButton);
     resetRow.appendChild(shareButton);
     inner.appendChild(resetRow);
+    // 고민 상담 — 올린 말씀 안에서만 찾아 위로와 조언을 해 주는 화면
+    var counselButton = mk('button', 'sa-opt sa-counsel', '고민 상담 — 말씀으로 위로와 조언 받기');
+    counselButton.type = 'button';
+    counselButton.style.cssText = 'width:100%;margin-top:8px';
+    counselButton.onclick = function () { close(); global.location.href = '/sayeon/counsel.html'; };
+    inner.appendChild(counselButton);
 
     el.wrap.appendChild(inner);
     document.body.appendChild(el.back);
