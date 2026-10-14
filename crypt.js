@@ -11,7 +11,12 @@
  *   img.src = await SaCrypt.blobURL('img/1-1.jpg', 'image/jpeg');
  */
 (function (global) {
-  var PASS_KEY = 'sayeonPass';   // 다시 물어보지 않으려고 기기에만 둔다
+  // 다시 물어보지 않으려고 기기에 두는 것은 '암호'가 아니라 풀린 열쇠(꺼낼 수 없는 CryptoKey)다.
+  // 같은 주소(patrickdfg.github.io)의 다른 페이지가 저장소를 읽어도 암호 자체는 알 수 없다.
+  // 예전 버전이 localStorage 에 둔 암호(LEGACY_KEY)는 한 번 열어 본 뒤 지운다.
+  var LEGACY_KEY = 'sayeonPass';
+  // 성령사연·말씀 저장소는 소금이 같아 열쇠도 같다 — 한 번 열면 둘 다 열리도록 칸을 하나만 쓴다
+  var DB_NAME = 'sayeonKey', STORE = 'k', SLOT = 'main';
   // 그 저장소의 뿌리 = 주소의 첫 칸 (/sayeon/, /malsseum/ …).
   // 저장소를 나눠도(같은 호스트라 같은 출처) 이 규칙 하나로 맞는다.
   var base = (function () {
@@ -62,29 +67,69 @@
       { name: 'AES-GCM', iv: all.slice(0, 12) }, key, all.slice(12));
   }
 
+  // 열쇠 보관함(IndexedDB). 안 열리는 환경이면 조용히 건너뛰고 매번 암호를 묻는다.
+  function store(mode, run) {
+    return new Promise(function (resolve, reject) {
+      var req;
+      try { req = indexedDB.open(DB_NAME, 1); } catch (e) { reject(e); return; }
+      req.onupgradeneeded = function () { req.result.createObjectStore(STORE); };
+      req.onerror = function () { reject(req.error); };
+      req.onsuccess = function () {
+        var db = req.result, out;
+        try {
+          var tx = db.transaction(STORE, mode);
+          out = run(tx.objectStore(STORE));
+          tx.oncomplete = function () { db.close(); resolve(out && 'result' in out ? out.result : undefined); };
+          tx.onerror = tx.onabort = function () { db.close(); reject(tx.error); };
+        } catch (e) { db.close(); reject(e); }
+      };
+    });
+  }
+  function saveKey(k) { return store('readwrite', function (o) { return o.put(k, SLOT); }); }
+  function loadKey() { return store('readonly', function (o) { return o.get(SLOT); }); }
+  function dropKey() { return store('readwrite', function (o) { return o.delete(SLOT); }); }
+  function dropLegacy() { try { localStorage.removeItem(LEGACY_KEY); } catch (e) {} }
+
+  /* 열쇠가 맞는지는 작은 표(check.enc)가 풀리는지로 가린다 */
+  function verify() { return getBuffer('check.enc').then(decrypt); }
+
   /* 암호를 넣어 열쇠를 만든다. 작은 표(check.enc)가 풀리면 맞는 암호다. */
   function unlock(pass) {
     return deriveKey(pass).then(function (k) {
       key = k;
-      return getBuffer('check.enc').then(decrypt).then(function () {
-        try { localStorage.setItem(PASS_KEY, pass); } catch (e) {}
-        return true;
+      return verify().then(function () {
+        dropLegacy();
+        return saveKey(k).catch(function () {}).then(function () { return true; });
       });
     }).catch(function () { key = null; return false; });
   }
 
-  /* 저장해 둔 암호로 조용히 열어 본다 (두 번째부터는 묻지 않는다) */
+  /* 저장해 둔 열쇠로 조용히 열어 본다 (두 번째부터는 묻지 않는다) */
   function resume() {
-    var saved = null;
-    try { saved = localStorage.getItem(PASS_KEY); } catch (e) {}
-    if (!saved) return Promise.resolve(false);
-    return unlock(saved);
+    return loadKey().catch(function () { return null; }).then(function (k) {
+      if (k) {
+        key = k;
+        return verify().then(function () { return true; }).catch(function () {
+          key = null;                       // 암호가 바뀌었다 — 낡은 열쇠는 버리고 다시 묻는다
+          dropKey().catch(function () {});
+          return false;
+        });
+      }
+      var legacy = null;
+      try { legacy = localStorage.getItem(LEGACY_KEY); } catch (e) {}
+      if (!legacy) return false;
+      return unlock(legacy).then(function (ok) {
+        if (!ok) dropLegacy();
+        return ok;
+      });
+    });
   }
 
   function forget() {
     key = null;
     jsonCache = {};
-    try { localStorage.removeItem(PASS_KEY); } catch (e) {}
+    dropLegacy();
+    dropKey().catch(function () {});
   }
 
   function ready() { return !!key; }

@@ -1,3 +1,6 @@
+## 2026-10-14 보안 점검 반영 (crypt.js 열쇠 저장, 링크·하이라이트 검증)
+- sayeon 저장소와 같게 `crypt.js` 와 `index.html` 을 맞췄다. 기기에 암호를 글자 그대로 두지 않고 열쇠(IndexedDB)만 두며, 하이라이트 값은 `cleanHighlights` 로 거르고 영상 링크는 `http(s)://` 만 허용한다(자세한 것은 sayeon 쪽 UPDATE_HISTORY).
+
 ## 2026-10-14 index.html 에 검색 로봇 차단(noindex) 태그 추가
 - sayeon 저장소 `malsseum/index.html` 사본과 같게 `<meta name="robots" content="noindex,nofollow,noarchive">` 를 넣었다. 화면 동작은 그대로다.
 
