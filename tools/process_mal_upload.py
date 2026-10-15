@@ -15,7 +15,10 @@
 
 작업표(job.json)
   {"hwp": "script.hwp", "parts": ["audio.mp3.part000", ...], "sha256": "...", "size": 123,
-   "join": false, "replace": false, "no": null, "dry_run": false}
+   "join": false, "replace": false, "no": null, "dry_run": false,
+   "speakers": {"문단번호(0부터)": ["god", null]}}
+
+speakers 는 검토한 “…” 인용 순서대로 지정하는 선택 항목이다. 본문은 바꾸지 않는다.
 
 SAYEON_PASS 환경변수가 필요하다. 깃허브 일꾼에서는 저장소 비밀값으로 받는다.
 끝나면 편 번호를 GITHUB_OUTPUT 의 `no` 로 내보내 시간표 단계가 쓴다.
@@ -24,6 +27,7 @@ import glob
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -107,6 +111,26 @@ def next_number(data):
     return number
 
 
+def apply_speakers(entry, speakers):
+    """검토한 인용 화자를 붙인다. 본문 글자·줄·문단은 바꾸지 않는다."""
+    if not isinstance(speakers, dict):
+        raise ValueError('speakers 는 문단 번호와 화자 배열의 객체여야 합니다.')
+    allowed = {'god', 'spirit', 'son', 'teacher', 'jesus', None}
+    for index, values in speakers.items():
+        if not str(index).isdigit() or int(index) >= len(entry['paragraphs']):
+            raise ValueError('화자 문단 번호가 잘못되었습니다: %s' % index)
+        paragraph = entry['paragraphs'][int(index)]
+        lines = paragraph.get('p') if isinstance(paragraph, dict) else paragraph
+        if not isinstance(lines, list):
+            raise ValueError('제목·구분선에는 화자를 붙일 수 없습니다.')
+        count = len(re.findall('“[^”]*(?:”|$)', ''.join(lines)))
+        if (not isinstance(values, list) or len(values) != count or
+                any(not (value is None or isinstance(value, str)) or value not in allowed
+                    for value in values)):
+            raise ValueError('화자 배열이 인용문과 맞지 않습니다: %s' % index)
+        entry['paragraphs'][int(index)] = {'p': lines, 'sp': values}
+
+
 def process(folder):
     with open(os.path.join(folder, 'job.json'), encoding='utf-8-sig') as stream:
         job = json.load(stream)
@@ -118,6 +142,7 @@ def process(folder):
     audio_tmp = assemble(folder, job)
     # 번호는 아직 모르니 임시로 0 을 넣어 날짜·제목만 읽는다
     entry, (month, day) = importer.make_entry(hwp, 0, None, bool(job.get('join')))
+    apply_speakers(entry, job.get('speakers', {}))
     stem = '%02d%02d' % (month, day)
     audio_rel = 'audio/%s.mp3' % stem
 
