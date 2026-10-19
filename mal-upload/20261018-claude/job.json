@@ -1,0 +1,17 @@
+{
+ "hwp": "script.hwp",
+ "parts": [
+  "audio.mp3.part000",
+  "audio.mp3.part001",
+  "audio.mp3.part002"
+ ],
+ "sha256": "5405257ee2e27d7434fed4d27cc9e3d5aaded77ee2c728c4f2bcaf9a9bc1bca1",
+ "size": 16155094,
+ "join": false,
+ "replace": false,
+ "speakers": {
+  "1": [
+   "jesus"
+  ]
+ }
+}
