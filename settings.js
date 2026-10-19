@@ -33,12 +33,13 @@
   var AUDIO_FIRST = ['human', 'tts', 'device'];
 
   // voice: 기기가 읽어 줄 때 쓸 목소리의 voiceURI. 빈 값이면 '기기가 고름'(구글 것 먼저).
+  // recRate: 올린 녹음(육성)을 틀 때의 재생 속도(기본 100%). rate 는 현수·기기 목소리용이라 기본 90% 인데 녹음에 그대로 쓰면 느려진다.
   // audioFirst: 먼저 들을 음성 — 녹음(human) / 현수(tts) / 기기 목소리(device)
   var DEF = { size: 16, lh: 1.95, pad: 18, font: 0,
-              bg: '#1b2018', text: '#e9ece4', autoMode: 'prev', rate: 0.90, voice: '',
+              bg: '#1b2018', text: '#e9ece4', autoMode: 'prev', rate: 0.90, recRate: 1.00, voice: '',
               audioFirst: 'human' };
-  var RANGE = { size: [12, 30], lh: [1.2, 2.6], pad: [0, 60], rate: [0.5, 2.0] };
-  var STEP = { size: 1, lh: 0.05, pad: 2, rate: 0.05 };
+  var RANGE = { size: [12, 30], lh: [1.2, 2.6], pad: [0, 60], rate: [0.5, 2.0], recRate: [0.5, 2.0] };
+  var STEP = { size: 1, lh: 0.05, pad: 2, rate: 0.05, recRate: 0.05 };
 
   var cfg = null, listeners = [], unit = '편', el = {};
 
@@ -60,6 +61,7 @@
     if (typeof s.bg === 'string') c.bg = s.bg;
     if (typeof s.text === 'string') c.text = s.text;
     if (typeof s.rate === 'number') c.rate = clamp('rate', s.rate);
+    if (typeof s.recRate === 'number') c.recRate = clamp('recRate', s.recRate);
     if (typeof s.voice === 'string') c.voice = s.voice;
     for (i = 0; i < AUDIO_FIRST.length; i++) {
       if (s.audioFirst === AUDIO_FIRST[i]) c.audioFirst = s.audioFirst;
@@ -94,13 +96,14 @@
     cfg.lh = clamp('lh', cfg.lh);
     cfg.pad = clamp('pad', cfg.pad);
     cfg.rate = clamp('rate', cfg.rate);
+    cfg.recRate = clamp('recRate', cfg.recRate);
     store();
     paint();
     notify();
   }
   function bump(name, dir) {
     var v = cfg[name] + STEP[name] * dir, patch = {};
-    patch[name] = (name === 'lh' || name === 'rate')
+    patch[name] = (name === 'lh' || name === 'rate' || name === 'recRate')
       ? Math.round(v * 100) / 100 : Math.round(v);
     set(patch);
   }
@@ -609,7 +612,10 @@
     el.rate = stepper('rate', function (v) { return Math.round(v * 100) + '%'; });
     s.appendChild(el.rate.box);
     s.appendChild(mk('div', 'sa-note',
-      '녹음은 원래 속도로 들려 드립니다. 컴퓨터 목소리(🤖)와 기기 목소리(📱)만 이 속도를 따르고, 기기 목소리는 다음 문단부터 바뀝니다.'));
+      '컴퓨터 목소리(🤖)와 기기 목소리(📱)의 속도입니다. 기기 목소리는 다음 문단부터 바뀝니다.'));
+    s.appendChild(mk('div', 'sa-note', '녹음 재생 속도(🎙️ 육성본, 소리 높낮이는 그대로)'));
+    el.recRate = stepper('recRate', function (v) { return Math.round(v * 100) + '%'; });
+    s.appendChild(el.recRate.box);
     inner.appendChild(s);
 
     // 기기가 읽어 주는 편에만 쓰인다 (녹음이 있는 편은 그 파일을 튼다)
@@ -723,6 +729,7 @@
     paintStep(el.size, 'size');
     paintStep(el.lh, 'lh');
     paintStep(el.rate, 'rate');
+    paintStep(el.recRate, 'recRate');
     paintStep(el.pad, 'pad');
     el.textColor.input.value = cfg.text;
     el.textColor.hex.textContent = cfg.text;

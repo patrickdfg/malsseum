@@ -19,7 +19,7 @@
 <script src="/malsseum/analytics.js"></script>
 <script src="/malsseum/crypt.js"></script>
 <script src="/sayeon/app-tts.js?v=1"></script>
-<script src="/malsseum/settings.js?v=13"></script>
+<script src="/malsseum/settings.js?v=14"></script>
 <script>
 /* 화면이 그려지기 전에 상태바 색을 정한다.
    브라우저가 이 색을 보고 상태바 글자(시계·배터리) 색을 정하기 때문에,
@@ -620,7 +620,7 @@ function applyCfg() {
   setVar("--font", cfg.fontFamily);
   setVar("--bg", cfg.bg);
   setVar("--text", cfg.text);
-  if (player) player.playbackRate = fileRate(typeof SAYEON !== "undefined" && SAYEON ? SAYEON[idx] : null);
+  if (player) player.playbackRate = fileRate(typeof MAL !== "undefined" && MAL ? MAL[idx] : null);
   syncThemeColor();
 }
 
@@ -1067,8 +1067,8 @@ function audioFor(s) {
   return human || tts;
 }
 function isHumanAudio(s) { return !!(s && s.audio && audioFor(s) === s.audio); }
-// 올린 녹음(육성)은 원래 속도 그대로 두고, 컴퓨터 목소리 파일(현수)만 설정의 읽기 속도를 따른다
-function fileRate(s) { return isHumanAudio(s) ? 1 : cfg.rate; }
+// 올린 녹음(육성)은 따로 기억한 녹음 속도(기본 100%)를, 현수 파일은 읽기 속도를 따른다(소리 높낮이는 그대로)
+function fileRate(s) { return isHumanAudio(s) ? cfg.recRate : cfg.rate; }
 
 /* ===== 목소리 =====
    녹음이 아직 없는 편만 기기가 그 자리에서 읽어 준다(지금 말씀은 69편 모두 음성이 있다).
@@ -1461,9 +1461,9 @@ function updatePlayerUI() {
     b.onclick = function () { psSource(k); };
     box.appendChild(b);
   });
-  // 녹음(육성)은 원래 속도로만 들려 준다 — 속도는 녹음본·TTS 에만 쓴다
-  $("psRateBox").style.display = key === "human" ? "none" : "";
-  $("psRate").textContent = (Math.round(cfg.rate * 100) / 100) + "x";
+  // 읽기속도 칸은 육성본·녹음본·TTS 어느 쪽에서나 보인다
+  $("psRateBox").style.display = "";
+  $("psRate").textContent = (Math.round((key === "human" ? cfg.recRate : cfg.rate) * 100) / 100) + "x";
   $("psVoice").style.display = key === "device" ? "" : "none";
   $("psVoice").textContent = "🗣 " + (voiceName() || "목소리");
   $("psTimer").textContent = sleepLabel();
@@ -1539,9 +1539,10 @@ function psSkip(dir) {
   }
 }
 function psRate(dir) {
-  var v = Math.round((cfg.rate + dir * 0.1) * 100) / 100;
+  var human = sourceKey(MAL[idx]) === "human";   // 육성본은 녹음 속도, 나머지는 읽기 속도를 바꾼다
+  var v = Math.round(((human ? cfg.recRate : cfg.rate) + dir * 0.1) * 100) / 100;
   v = Math.max(0.5, Math.min(2, v));
-  SaSettings.set({ rate: v });
+  SaSettings.set(human ? { recRate: v } : { rate: v });
   if (speaking && sourceKey(MAL[idx]) === "device") restartParagraph();   // 바꾼 속도로 이 문단부터
 }
 function psSource(key) {
