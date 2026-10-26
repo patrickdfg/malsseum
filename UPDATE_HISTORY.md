@@ -1,3 +1,8 @@
+## 2026-10-26 Claude 가 자주 쓰는 명령을 묻지 않고 실행하도록 허용 규칙 추가
+- 사용자 요청: 권한 허용을 매번 묻지 않게. 저장소 `.claude/settings.json` 의 `permissions.allow` 에 git·node·python·ffmpeg·파일 보기/복사 같은 명령과 Actions 실행·예약 도구(`mcp__github__actions_*`, `send_later`)를 넣었다.
+- 막아 둔 것(`deny`) — `git push --force`/`-f`, `git reset --hard`, `rm -rf`. 되돌릴 수 없는 일은 허용 목록에 있어도 계속 막힌다.
+- 한계 — 이 설정은 저장소가 **하나만** 연결된 세션에서만 읽힌다(`sayeon`·`malsseum` 을 함께 연결하면 적용되지 않을 수 있다). 모든 도구 호출을 묻지 않으려면 앱의 모드 선택에서 **Auto** 를 골라야 한다(제가 대신 바꿀 수 없다).
+
 ## 2026-10-19 하이라이트를 투명하게
 - sayeon 저장소와 같게 `index.html` 의 하이라이트(노랑·초록·파랑)를 `rgba(...,.35)` 로, 글자색을 테마색(`inherit`)으로 바꿨다.
 
