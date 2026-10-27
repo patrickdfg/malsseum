@@ -1,3 +1,8 @@
+## 2026-10-27 듣기 시트에서 제목·문단 글자 숨김
+- 사용자 요청: 듣는 중 화면을 눌러 열리는 시트에 "성령 말씀 193" 제목과 지금 읽는 문단 글이 없어도 된다.
+- `index.html` 의 `.ps-title`, `.ps-text` 에 `display:none` 을 주고 `.ps-top` 은 오른쪽 정렬(`justify-content:flex-end`)로 바꿔 ⌄ 버튼이 제자리에 남게 했다. JS 가 두 칸에 글을 쓰는 코드와 터치 처리는 그대로 두었다(칸만 숨김).
+- "2 / 12" 같은 문단 위치(`#psPos`)는 남겼다. 로컬 브라우저로 시트를 열어 두 칸이 안 보이고 막대·버튼·칩이 그대로인 것을 확인했다.
+
 ## 2026-10-26 Claude 가 자주 쓰는 명령을 묻지 않고 실행하도록 허용 규칙 추가
 - 사용자 요청: 권한 허용을 매번 묻지 않게. 저장소 `.claude/settings.json` 의 `permissions.allow` 에 git·node·python·ffmpeg·파일 보기/복사 같은 명령과 Actions 실행·예약 도구(`mcp__github__actions_*`, `send_later`)를 넣었다.
 - 막아 둔 것(`deny`) — `git push --force`/`-f`, `git reset --hard`, `rm -rf`. 되돌릴 수 없는 일은 허용 목록에 있어도 계속 막힌다.
