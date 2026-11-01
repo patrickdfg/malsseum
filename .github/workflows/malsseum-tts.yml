@@ -74,7 +74,8 @@ jobs:
           rm -f malsseum-tts-request.json
           git config user.name "sayeon-publisher[bot]"
           git config user.email "sayeon-publisher[bot]@users.noreply.github.com"
-          git add -A malsseum.json.enc audio malsseum-tts-request.json
+          git add -A malsseum.json.enc audio
+          git add -A -- malsseum-tts-request.json 2>/dev/null || true   # 요청 파일 없이 Actions 에서 직접 돌린 때는 없다
           if git diff --cached --quiet; then
             echo "새로 만든 음성이 없습니다."
             exit 0
