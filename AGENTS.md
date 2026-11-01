@@ -68,6 +68,8 @@
 
 ## 소리 크기 — 모두 -18.4 LUFS (2026-10-14)
 
+- **2026-11-01 시험**: `audio/1021.mp3`, `1025.mp3` 만 -16 LUFS 다(최근 일주일치 시험, 들어 본 뒤 전체로 정한다). `tools/loud16.py` 로 만들었고 `match_volume.py` 의 `KEEP_16` 이 되돌리지 않는다. 새 말씀은 정해지기 전까지 -18.4.
+
 - 사이트의 모든 소리는 -18.4 LUFS 에 맞춘다(sayeon 저장소 AGENTS.md '소리 크기 기준'). 말씀 음성도 같다.
 - `python tools/match_volume.py --check` 로 재 보고, `python tools/match_volume.py` (또는 `0802 0805` 처럼 파일 이름)로 맞춘다.
   1 dB 안이면 건너뛰고 길이가 0.3초 넘게 바뀌면 되돌리므로 `audio/sync.json` 은 그대로 둔다.

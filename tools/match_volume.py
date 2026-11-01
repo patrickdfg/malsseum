@@ -27,6 +27,8 @@ TARGET_LUFS = -18.4      # 사이트 기준(sayeon 의 현수 음성 가운데�
 TARGET_TP = -1.5         # 가장 큰 순간에 여유를 둬 찌그러지지 않게
 TARGET_LRA = 11
 NEAR = 1.0               # 이만큼 안에 들면 이미 맞는 것으로 본다
+# 2026-11-01 -16 LUFS 로 시험해 올린 최근 말씀(sayeon 저장소 tools/loud16.py). -18.4 로 되돌리지 않는다
+KEEP_16 = {'1021.mp3', '1025.mp3'}
 
 
 def ffmpeg():
@@ -73,6 +75,8 @@ def measure(path):
 
 def fix(path):
     """소리 크기를 맞춰 제자리에 바꿔 넣는다. 바꿨으면 (전, 후) 를 돌려준다."""
+    if os.path.basename(path) in KEEP_16:
+        return None
     before = loudness(path)
     if before is None:
         print('  %s: 소리를 재지 못해 건너뜀' % os.path.basename(path))
@@ -122,8 +126,8 @@ def main(args):
     for no, path in items:
         if check:
             v = loudness(path)
-            print('  %s편 %6.1f LUFS  %s'
-                  % (no, v, '맞음' if abs(v - TARGET_LUFS) < NEAR else '어긋남'))
+            ok = abs(v - TARGET_LUFS) < NEAR or os.path.basename(path) in KEEP_16
+            print('  %s편 %6.1f LUFS  %s' % (no, v, '맞음' if ok else '어긋남'))
             continue
         r = fix(path)
         if r:
