@@ -1260,8 +1260,49 @@ player.ontimeupdate = function () {
   if (pi >= 0 && pi !== syncPi) { syncPi = pi; highlight(pi); }
 };
 
-player.onended = function () { advanceOrStop(true); };
-player.onerror = function () { advanceOrStop(false); };
+player.onended = function () { audioActive = false; advanceOrStop(true); };
+
+/* ===== 음성 파일이 끊겼을 때 다시 받기 (2026-11-08, sayeon index.html 과 같은 방식) =====
+   받다가 오류가 나거나 15초 넘게 멈춰 있으면 끊긴 곳 1초 앞부터 3번까지 다시 받는다. */
+var audioActive = false, audioSrc = "", audioRetry = 0, audioLastT = 0, audioLastMove = 0;
+var AUDIO_RETRY_MAX = 3, AUDIO_STALL_MS = 15000;
+var audioRetryWait = false, audioResumeT = 0;   // 오류와 재생 실패가 한 번에 같이 오므로 한 번만 센다
+function audioResumeFrom(t) {
+  if (!speaking || !audioActive) return;
+  audioResumeT = t;
+  player.src = audioSrc;
+  player.playbackRate = fileRate(MAL[idx]);   // 새로 받으면 속도가 1배로 돌아가므로 다시 맞춘다
+  try { player.currentTime = t; } catch (e) {}
+  audioLastMove = Date.now();
+  audioPlay();
+}
+function audioRetryOrStop() {
+  if (!speaking || !audioActive || audioRetryWait) return;
+  if (audioRetry >= AUDIO_RETRY_MAX) { audioActive = false; advanceOrStop(false); return; }
+  audioRetry++;
+  audioRetryWait = true;
+  var t = Math.max(0, (player.currentTime || audioLastT) - 1);   // 끊긴 곳 1초 앞부터
+  setTimeout(function () { audioRetryWait = false; audioResumeFrom(t); }, 1500 * audioRetry);
+}
+function audioPlay() {
+  var p = player.play();
+  if (p && p.catch) p.catch(function (e) {
+    if (e && e.name === "AbortError") return;          // 새 파일로 바꾸느라 끊긴 것은 괜찮다
+    if (e && e.name === "NotAllowedError") { audioActive = false; stopSpeak(true); return; }   // 브라우저가 막음 — 다시 누르게
+    audioRetryOrStop();
+  });
+}
+player.onerror = function () { audioRetryOrStop(); };
+player.addEventListener("timeupdate", function () {
+  if (player.currentTime !== audioLastT) {
+    audioLastT = player.currentTime; audioLastMove = Date.now();
+    if (audioRetry && !audioRetryWait && audioLastT > audioResumeT + 3) audioRetry = 0;   // 다시 3초 넘게 잘 나오면 횟수를 처음으로
+  }
+});
+setInterval(function () {
+  if (!speaking || !audioActive || player.paused || player.ended) return;
+  if (Date.now() - audioLastMove > AUDIO_STALL_MS) { audioLastMove = Date.now(); audioRetryOrStop(); }
+}, 3000);
 
 function speakNext() {
   if (qi >= queue.length) { advanceOrStop(!playbackHadError); return; }
@@ -1297,11 +1338,13 @@ function playAudioNow(s) {
   if (silentAnchor) silentAnchor.pause();
   startSyncFollow(s);
   var audioPath = audioFor(s);
-  player.src = audioPath.charAt(0) === "/" ? audioPath : "/malsseum/" + audioPath;
+  audioSrc = audioPath.charAt(0) === "/" ? audioPath : "/malsseum/" + audioPath;
+  audioActive = true; audioRetry = 0; audioLastT = audioResumeT = pendingStart || 0; audioLastMove = Date.now();
+  player.src = audioSrc;
   player.playbackRate = fileRate(s);
   player.currentTime = pendingStart || 0;
   pendingStart = 0;
-  player.play();
+  audioPlay();
 }
 
 function startSpeak(resume) {
@@ -1345,6 +1388,7 @@ function startSpeak(resume) {
 function stopSpeak(keepSheet) {
   var hold = keepSheet === true || sheetHold;   // 일시정지·편 넘기기에서는 시트를 그대로 둔다
   speaking = false;
+  audioActive = false;
   speakGen++;
   syncTimes = null; syncPi = -1;
   releaseWakeLock();
