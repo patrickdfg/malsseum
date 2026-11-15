@@ -9,7 +9,7 @@
 하는 일
   1. 녹음 조각을 합쳐 SHA-256 을 맞춰 보고 mp3 인지 본다.
   2. 원고 머리글에서 날짜를 읽어 `audio/MMDD.mp3` 로 정하고 편 번호를 매긴다(없으면 다음 번호).
-  3. 25MB 가 넘는 녹음은 48kbps 모노로 줄인다.
+  3. 녹음 소리를 -16 LUFS 로 맞춘다(꼭대기는 리미터로 눌러 찢어짐을 막는다). 25MB 가 넘는 녹음은 이때 48kbps 모노로 함께 줄인다.
   4. 같은 날 같은 말씀이 이미 있으면 멈춘다(교체는 작업표에 `replace` 를 넣었을 때만).
   5. 원고를 잠긴 자료(malsseum.json.enc)에 넣고, 처리한 묶음 폴더를 지운다.
 
@@ -35,6 +35,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import crypt as content_crypt  # noqa: E402
 import import_malsseum_hwp as importer  # noqa: E402
+import loud16  # noqa: E402
 
 ROOT = importer.ROOT
 INBOX = os.path.join(ROOT, 'mal-upload')
@@ -97,6 +98,32 @@ def shrink(path):
     else:
         os.remove(small)
         say('  원본이 더 작아 그대로 둡니다')
+
+
+def normalize(path):
+    """녹음을 -16 LUFS 로 맞춘다(2026-11 말씀 소리 기준). 꼭대기는 리미터로 눌러 찢어짐을 막는다.
+    25MB 넘는 큰 녹음은 이때 48kbps 모노로 함께 줄인다(한 번만 인코딩하려고).
+    맞추지 못해도(길이가 바뀌는 등) 게시는 막지 않고 보낸 녹음을 그대로 쓴다. 맞췄으면 True."""
+    big = os.path.getsize(path) > SHRINK_ABOVE
+    tmp = path + '.l16.mp3'
+    try:
+        before, _ = loud16.measure(path)
+        if abs(before - loud16.TARGET) <= 0.3 and not big:
+            say('녹음 %.1f LUFS — 이미 -16 에 가까워 그대로 둡니다' % before)
+            return False
+        loud16.CEIL = -2.0
+        kw = {'kbps': 48, 'mono48': True} if big else {}
+        result = loud16.make(path, tmp, None, peak_max=-1.0, **kw)
+        shutil.move(tmp, path)
+        say('녹음 소리 크기 %.1f → %.1f LUFS, 꼭대기 %.1f dBFS%s' % (
+            result['전'][0], result['후'][0], result['후'][1], ' (48kbps 모노로 줄임)' if big else ''))
+        return True
+    except (SystemExit, Exception) as error:
+        say('::warning::녹음 소리 크기를 맞추지 못해 보낸 그대로 씁니다 (%s)' % str(error)[:120])
+        return False
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
 
 
 def next_number(data):
@@ -174,6 +201,7 @@ def process(folder):
         set_output('no', '')
         return
 
+    normalize(audio_tmp)
     shrink(audio_tmp)
     os.makedirs(os.path.join(ROOT, 'audio'), exist_ok=True)
     shutil.move(audio_tmp, os.path.join(ROOT, audio_rel))
